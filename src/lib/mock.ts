@@ -3,12 +3,23 @@ import type {
   BadgeKind,
   Feature,
   FeatureStatus,
+  FeedbackItem,
+  FeedbackPriority,
+  FeedbackStatus,
+  Idea,
   IdeaKind,
+  IdeaStatus,
+  PendingAreaGroup,
+  PendingUpdate,
+  Phase,
+  PhaseItem,
   Project,
   ProjectCounts,
   ProjectDetail,
   ProjectStatusKind,
   Task,
+  TestCase,
+  TestStatus,
   Ticket,
   TicketDetail,
   TicketPriority,
@@ -696,3 +707,300 @@ export function getFeatureById(projectId: string, featureId: string): Feature | 
   const features = FEATURES_BY_PROJECT[projectId] ?? [];
   return features.find((f) => f.id === featureId) ?? null;
 }
+
+// ---------------------------------------------------------------------------
+// Lifecycle phases (per project)
+// ---------------------------------------------------------------------------
+const item = (id: string, name: string, owner: string, status: PhaseItem["status"]): PhaseItem => ({ id, name, owner, status });
+
+const PHASES_BY_PROJECT: Record<string, Phase[]> = {
+  "11111111-1111-1111-1111-000000000001": [
+    {
+      id: "ph-bs-plan", type: "planning", name: "Planning", color: "purple",
+      startMonth: 0, endMonth: 1.5,
+      items: [
+        item("p-bs-plan-1", "MVP approval",            "Tyler", "complete"),
+        item("p-bs-plan-2", "Design approval",         "Tyler", "complete"),
+        item("p-bs-plan-3", "Go-live date determined", "Tyler", "complete"),
+        item("p-bs-plan-4", "Business sign-off",       "Tyler", "in_progress"),
+        item("p-bs-plan-5", "Marketing alignment",     "Tyler", "not_started"),
+      ],
+    },
+    {
+      id: "ph-bs-dev", type: "development", name: "Development", color: "brand",
+      startMonth: 1.5, endMonth: 4.0,
+      items: [
+        item("p-bs-dev-1", "Development",                   "Evan",  "in_progress"),
+        item("p-bs-dev-2", "Product / engineering testing", "Evan",  "in_progress"),
+        item("p-bs-dev-3", "User testing (UAT)",            "Tyler", "in_progress"),
+        item("p-bs-dev-4", "QA sign-off",                   "Tyler", "not_started"),
+      ],
+    },
+    {
+      id: "ph-bs-prep", type: "preparation", name: "Preparation", color: "info",
+      startMonth: 4.0, endMonth: 5.5,
+      items: [
+        item("p-bs-prep-1", "Release phases determined",          "Tyler", "in_progress"),
+        item("p-bs-prep-2", "Users determined",                   "Tyler", "in_progress"),
+        item("p-bs-prep-3", "SOPs created / updated",             "Tyler", "in_progress"),
+        item("p-bs-prep-4", "User guides created",                "Tyler", "not_started"),
+        item("p-bs-prep-5", "Training plan determined",           "Tyler", "not_started"),
+        item("p-bs-prep-6", "User training / provisioning",       "Tyler", "not_started"),
+        item("p-bs-prep-7", "Create feedback / support channels", "Tyler", "not_started"),
+      ],
+    },
+    {
+      id: "ph-bs-golive", type: "golive", name: "Go-live Phase 1", color: "success",
+      startMonth: 5.5, endMonth: 7.0,
+      items: [],
+    },
+    {
+      id: "ph-bs-feedback", type: "feedback", name: "Feedback", color: "warning",
+      startMonth: 7.0, endMonth: 10.0,
+      items: [],
+    },
+  ],
+  "11111111-1111-1111-1111-000000000002": [
+    { id: "ph-cp-plan", type: "planning", name: "Planning", color: "purple", startMonth: 1.0, endMonth: 2.5, items: [] },
+    { id: "ph-cp-dev",  type: "development", name: "Development", color: "brand", startMonth: 2.5, endMonth: 5.0, items: [] },
+    { id: "ph-cp-prep", type: "preparation", name: "Preparation", color: "info", startMonth: 5.0, endMonth: 6.5, items: [] },
+    { id: "ph-cp-golive", type: "golive", name: "Go-live Phase 1", color: "success", startMonth: 6.5, endMonth: 8.0, items: [] },
+    { id: "ph-cp-feedback", type: "feedback", name: "Feedback", color: "warning", startMonth: 8.0, endMonth: 11.0, items: [] },
+  ],
+  "11111111-1111-1111-1111-000000000003": [
+    { id: "ph-ft-plan", type: "planning", name: "Planning", color: "purple", startMonth: 3.0, endMonth: 4.5, items: [] },
+    { id: "ph-ft-dev",  type: "development", name: "Development", color: "brand", startMonth: 4.5, endMonth: 7.0, items: [] },
+    { id: "ph-ft-prep", type: "preparation", name: "Preparation", color: "info", startMonth: 7.0, endMonth: 8.5, items: [] },
+    { id: "ph-ft-golive", type: "golive", name: "Go-live Phase 1", color: "success", startMonth: 8.5, endMonth: 11.0, items: [] },
+  ],
+};
+
+export function getProjectPhases(projectId: string): Phase[] {
+  return PHASES_BY_PROJECT[projectId] ?? [];
+}
+
+export const PHASE_COLOR_VAR: Record<BadgeKind, string> = {
+  purple:  "var(--bc-purple-600)",
+  brand:   "var(--bc-brand-600)",
+  info:    "var(--bc-info-600)",
+  success: "var(--bc-success-600)",
+  warning: "var(--bc-warning-600)",
+  danger:  "var(--bc-danger-600)",
+  neutral: "var(--bc-slate-500)",
+};
+
+export const ITEM_STATUS_LABEL: Record<PhaseItem["status"], { label: string; kind: BadgeKind }> = {
+  not_started: { label: "Not started", kind: "neutral" },
+  in_progress: { label: "In progress", kind: "info" },
+  complete:    { label: "Complete",    kind: "success" },
+  na:          { label: "N/A",         kind: "neutral" },
+};
+
+// ---------------------------------------------------------------------------
+// Feedback
+// ---------------------------------------------------------------------------
+const PROJECT_FEEDBACK: Record<string, FeedbackItem[]> = {
+  "11111111-1111-1111-1111-000000000001": [
+    { id: "fb-bs-1", projectId: "11111111-1111-1111-1111-000000000001", title: "Approver can't see total before signing off",        body: null, priority: "high",    status: "open",        source: "Field team",       reportedBy: "Jamie",       createdAt: "2d ago" },
+    { id: "fb-bs-2", projectId: "11111111-1111-1111-1111-000000000001", title: "PDF export cuts off long vendor names",              body: null, priority: "medium",  status: "open",        source: "BuildCore portal", reportedBy: "Auto-routed", createdAt: "4d ago" },
+    { id: "fb-bs-3", projectId: "11111111-1111-1111-1111-000000000001", title: 'Add filter for "awaiting my approval"',              body: null, priority: "medium",  status: "in_progress", source: "Tyler",            reportedBy: "Tyler",       createdAt: "1w ago" },
+    { id: "fb-bs-4", projectId: "11111111-1111-1111-1111-000000000001", title: "Empty state copy is confusing",                      body: null, priority: "low",     status: "resolved",    source: "Field team",       reportedBy: "Riley",       createdAt: "1w ago" },
+  ],
+  "11111111-1111-1111-1111-000000000002": [
+    { id: "fb-cp-1", projectId: "11111111-1111-1111-1111-000000000002", title: "Legacy users hit 404 on first login",                body: null, priority: "critical", status: "open",        source: "Client",  reportedBy: "ACME Corp", createdAt: "6h ago" },
+    { id: "fb-cp-2", projectId: "11111111-1111-1111-1111-000000000002", title: "Notification emails sent twice during migration",   body: null, priority: "high",     status: "in_progress", source: "Support", reportedBy: "Support",   createdAt: "1d ago" },
+  ],
+  "11111111-1111-1111-1111-000000000003": [],
+};
+
+export function getProjectFeedback(projectId: string): FeedbackItem[] {
+  return PROJECT_FEEDBACK[projectId] ?? [];
+}
+
+export const FEEDBACK_STATUS_KIND: Record<FeedbackStatus, BadgeKind> = {
+  open:        "danger",
+  in_progress: "info",
+  resolved:    "success",
+};
+
+export const FEEDBACK_PRIORITY_KIND: Record<FeedbackPriority, BadgeKind> = {
+  critical: "danger",
+  high:     "warning",
+  medium:   "info",
+  low:      "neutral",
+};
+
+// ---------------------------------------------------------------------------
+// Test cases
+// ---------------------------------------------------------------------------
+const tc = (id: string, name: string, featureId: string | null, status: TestStatus, owner: string, lastRun: string | null, steps: string[], expected: string, failureNote: string | null = null): Omit<TestCase, "projectId" | "featureName"> => ({ id, name, featureId, status, owner, lastRun, steps, expected, failureNote });
+
+const PROJECT_TEST_CASES: Record<string, TestCase[]> = {
+  "11111111-1111-1111-1111-000000000001": [
+    { projectId: "11111111-1111-1111-1111-000000000001", featureName: "Vendor sourcing wizard", ...tc("tc-vs-1", "Select vendor type from list",     "f-vendor-sourcing", "passed",      "Tyler", "5d ago", ["Open new bid", "Click Add vendor", "Choose Plumber"],                                "Wizard advances to step 2.") },
+    { projectId: "11111111-1111-1111-1111-000000000001", featureName: "Vendor sourcing wizard", ...tc("tc-vs-2", "Search vendors by name",            "f-vendor-sourcing", "passed",      "Tyler", "5d ago", ["On step 2", 'Type "Smith"'],                                                          'Results filter to vendors with "Smith" in their name.') },
+    { projectId: "11111111-1111-1111-1111-000000000001", featureName: "Vendor sourcing wizard", ...tc("tc-vs-3", "Send invite to vendor",             "f-vendor-sourcing", "passed",      "Tyler", "5d ago", ["Pick a vendor", "Click Send invite"],                                                "Vendor receives email; status moves to Invited.") },
+
+    { projectId: "11111111-1111-1111-1111-000000000001", featureName: "Drag-and-drop line items", ...tc("tc-dnd-1", "Drag item up within a section",        "f-line-reorder", "passed", "Tyler", "1d ago", ["Open a bid with 3+ line items", "Drag item 3 to position 1"],                          "Item reorders; order persists after refresh.") },
+    { projectId: "11111111-1111-1111-1111-000000000001", featureName: "Drag-and-drop line items", ...tc("tc-dnd-2", "Drag item down within a section",      "f-line-reorder", "passed", "Tyler", "1d ago", ["Open a bid", "Drag item 1 to position 3"],                                           "Item reorders; order persists.") },
+    { projectId: "11111111-1111-1111-1111-000000000001", featureName: "Drag-and-drop line items", ...tc("tc-dnd-3", "Drop indicator shows correct position",  "f-line-reorder", "passed", "Tyler", "1d ago", ["Start dragging an item", "Hover between items"],                                     "A horizontal blue line appears where the item will land.") },
+    { projectId: "11111111-1111-1111-1111-000000000001", featureName: "Drag-and-drop line items", ...tc("tc-dnd-4", "Keyboard reorder with Cmd+Up/Down",      "f-line-reorder", "passed", "Tyler", "1d ago", ["Focus a line item", "Press Cmd+Up"],                                                 "Item moves up one position.") },
+
+    { projectId: "11111111-1111-1111-1111-000000000001", featureName: "Role-based approval permissions", ...tc("tc-rbp-1", "Project Manager can approve",              "f-role-permissions", "passed",      "Tyler", "4h ago", ["Log in as PM", "Open a bid with scope approved", "Click Approve"], "Bid is marked approved.") },
+    { projectId: "11111111-1111-1111-1111-000000000001", featureName: "Role-based approval permissions", ...tc("tc-rbp-2", "Field Tech cannot approve",                "f-role-permissions", "passed",      "Tyler", "4h ago", ["Log in as Field Tech", "Open a bid"],                              "Approve button is hidden.") },
+    { projectId: "11111111-1111-1111-1111-000000000001", featureName: "Role-based approval permissions", ...tc("tc-rbp-3", "Approve button hidden for view-only roles", "f-role-permissions", "passed",      "Tyler", "4h ago", ["Log in as Auditor", "Open a bid"],                                 "Approve button is hidden.") },
+    { projectId: "11111111-1111-1111-1111-000000000001", featureName: "Role-based approval permissions", ...tc("tc-rbp-4", "Server rejects unauthorized approval POST", "f-role-permissions", "in_progress", "Evan",  null,     ["As Field Tech, send POST to /api/bids/.../approve"],               "API responds 403.") },
+    { projectId: "11111111-1111-1111-1111-000000000001", featureName: "Role-based approval permissions", ...tc("tc-rbp-5", "Audit log row written for every attempt",  "f-role-permissions", "failed",      "Evan",  "1h ago", ["Attempt an approval (success or fail)", "Query bid_approval_audit table"], "A new row exists with user_id, bid_id, attempted_at, and result.", "No row was written when the attempt was rejected for missing authority. Audit only fires on success path.") },
+
+    { projectId: "11111111-1111-1111-1111-000000000001", featureName: "Scope approval gate", ...tc("tc-sag-1", "Approve disabled when scope is pending",  "f-scope-gate", "passed",      "Tyler", "4h ago", ["Open a bid where scope status is pending", "Hover Approve"],          "Approve button is disabled.") },
+    { projectId: "11111111-1111-1111-1111-000000000001", featureName: "Scope approval gate", ...tc("tc-sag-2", "Approve disabled when scope is rejected", "f-scope-gate", "in_progress", "Tyler", null,     ["Open a bid where scope is rejected"],                                 "Approve button is disabled.") },
+    { projectId: "11111111-1111-1111-1111-000000000001", featureName: "Scope approval gate", ...tc("tc-sag-3", "API returns 422 when scope not approved", "f-scope-gate", "not_started", "Evan",  null,     ["Send approval POST"],                                                 'Response is 422 with reason "scope_not_approved" and bid unchanged.') },
+
+    { projectId: "11111111-1111-1111-1111-000000000001", featureName: "Improved PDF export", ...tc("tc-pdf-1", "Long vendor names wrap correctly",        "f-pdf-export", "failed",      "Tyler", "3h ago", ["Generate PDF from bid with vendor name longer than 40 chars", "Open the PDF"], "Vendor name wraps onto a second line; no overflow off page.", 'Vendor name "Smith Construction and Renovation Services LLC" still overflows the right edge of the page on the cover page. Body sections wrap correctly — looks like the cover-page header style is missing the word-break rule.') },
+    { projectId: "11111111-1111-1111-1111-000000000001", featureName: "Improved PDF export", ...tc("tc-pdf-2", "Multi-section bid renders all sections",  "f-pdf-export", "not_started", "Tyler", null,     ["Bid with 3 sections", "Generate PDF"],                                                 "All three sections render in order.") },
+  ],
+  "11111111-1111-1111-1111-000000000002": [
+    { projectId: "11111111-1111-1111-1111-000000000002", featureName: "User mapping import", ...tc("tc-um-1", "Legacy user can log in with old email", "f-user-mapping", "failed", "Tyler", "6h ago", ["Run migration", "Log in as a legacy user"], "Login succeeds and lands on portal home.", "After cutover, ~3% of legacy users hit a 404 page instead of the portal home. Reproduces 100% for users whose email contained a + sign.") },
+  ],
+  "11111111-1111-1111-1111-000000000003": [],
+};
+
+export function getProjectTestCases(projectId: string): TestCase[] {
+  return PROJECT_TEST_CASES[projectId] ?? [];
+}
+
+export const TEST_STATUS_LABEL: Record<TestStatus, { label: string; kind: BadgeKind }> = {
+  not_started: { label: "Not started", kind: "neutral" },
+  in_progress: { label: "In progress", kind: "info" },
+  passed:      { label: "Passed",      kind: "success" },
+  failed:      { label: "Failed",      kind: "danger" },
+  blocked:     { label: "Blocked",     kind: "warning" },
+};
+
+// ---------------------------------------------------------------------------
+// Pending updates (seeded from failed test cases)
+// ---------------------------------------------------------------------------
+export function getProjectPending(projectId: string): PendingUpdate[] {
+  const cases = getProjectTestCases(projectId).filter((c) => c.status === "failed");
+  return cases.map((c, i) => {
+    const feature = c.featureId ? getFeatureById(projectId, c.featureId) : null;
+    return {
+      id: `pending-${c.id}`,
+      projectId,
+      type: "test_failure" as const,
+      title: c.name,
+      description: c.failureNote ?? "",
+      featureId: c.featureId,
+      featureName: c.featureName,
+      sourceCaseId: c.id,
+      linkedTicketRefs: feature?.ticketRefs ?? [],
+      steps: c.steps,
+      expected: c.expected,
+      createdAt: `${i + 1}h ago`,
+    };
+  });
+}
+
+export function groupPendingByArea(projectId: string): PendingAreaGroup[] {
+  const items = getProjectPending(projectId);
+  const features = FEATURES_BY_PROJECT[projectId] ?? [];
+  const groups = new Map<string, PendingAreaGroup>();
+  for (const f of features) {
+    const featureItems = items.filter((p) => p.featureId === f.id);
+    if (featureItems.length > 0) groups.set(f.id, { feature: f, items: featureItems });
+  }
+  const unassigned = items.filter((p) => !p.featureId);
+  if (unassigned.length > 0) groups.set("__unassigned__", { feature: null, items: unassigned });
+  return Array.from(groups.values());
+}
+
+// ---------------------------------------------------------------------------
+// Ideas
+// ---------------------------------------------------------------------------
+const idea = (
+  id: string,
+  kind: IdeaKind,
+  status: IdeaStatus,
+  title: string,
+  description: string,
+  value: string,
+  audience: string,
+  tags: string[],
+  owner: string,
+  votes: number,
+  targetProjectId: string | null,
+  targetFeatureId: string | null,
+  createdAt: string,
+): Idea => {
+  const targetProject = targetProjectId ? MOCK_PROJECTS.find((p) => p.id === targetProjectId) : null;
+  const targetFeature = targetProjectId && targetFeatureId ? (FEATURES_BY_PROJECT[targetProjectId] ?? []).find((f) => f.id === targetFeatureId) : null;
+  return {
+    id,
+    kind,
+    status,
+    title,
+    description,
+    value,
+    audience,
+    tags,
+    owner,
+    votes,
+    targetProjectId,
+    targetProjectName: targetProject?.name ?? null,
+    targetFeatureId,
+    targetFeatureName: targetFeature?.name ?? null,
+    createdAt,
+  };
+};
+
+export const MOCK_IDEAS: Idea[] = [
+  idea("idea-1", "new_project", "captured", "Mobile field photo upload with offline queue",
+    "Field techs can take and attach photos to a project record from the BuildCore mobile app, even without signal. Uploads sync when connectivity returns.",
+    "Field photos today get lost in text messages or never make it into the project record at all. This makes documentation reliable.",
+    "Field technicians on remote job sites. PMs who need photo evidence after the fact.",
+    ["mobile", "field", "photos"], "Tyler", 9, null, null, "5d ago"),
+  idea("idea-2", "new_project", "captured", "NetSuite invoice sync nightly job",
+    "Nightly job that pushes newly approved invoices from BuildCore into NetSuite without manual entry.",
+    "Accounting spends 4 hours a week on dual entry. Eliminating that frees them up for analysis.",
+    "Accounting team. Finance leadership reporting on cash flow.",
+    ["integrations", "netsuite", "accounting"], "Tyler", 3, null, null, "12d ago"),
+  idea("idea-3", "new_feature", "approved", "Vendor performance scorecard",
+    "On every vendor page in Bid Sheet v2, show a rolling scorecard: on-time bid response rate, completion rate, average days-to-complete, dispute count.",
+    "Helps PMs pick the right vendor for new work. Today they are guessing or asking around.",
+    "Project managers selecting vendors.",
+    ["vendors", "analytics"], "Evan", 5, "11111111-1111-1111-1111-000000000001", null, "2w ago"),
+  idea("idea-4", "new_feature", "triaging", "Auto-generate change orders from approved scope deltas",
+    "When a scope is approved with changes from the prior version, automatically draft a change order doc with the differences pre-filled.",
+    "PMs spend an hour per change order today. This cuts it to a 5-minute review.",
+    "Project managers and operations directors.",
+    ["scope", "change-orders"], "Tyler", 7, "11111111-1111-1111-1111-000000000001", null, "9d ago"),
+  idea("idea-5", "enhancement", "captured", "Bulk vendor invite from a saved list",
+    "In the vendor sourcing wizard, allow selecting from a previously saved vendor list to invite multiple vendors in one click.",
+    "Cuts repeat-vendor sourcing from minutes to seconds for clients who use the same vendor pool.",
+    "PMs running repeat projects with the same set of subs.",
+    ["vendors", "productivity"], "Tyler", 4, "11111111-1111-1111-1111-000000000001", "f-vendor-sourcing", "4d ago"),
+  idea("idea-6", "enhancement", "captured", "Reorder items across sections, not just within",
+    "In drag-and-drop line items, allow dragging an item from one bid section into another section.",
+    "Editors currently have to delete and recreate when something belongs in a different section.",
+    "Bid editors restructuring complex bids.",
+    ["drag-drop", "sections"], "Tyler", 2, "11111111-1111-1111-1111-000000000001", "f-line-reorder", "3d ago"),
+  idea("idea-7", "enhancement", "approved", "Show approval gate reason on hover",
+    "When the Approve button is disabled by the scope gate, show a tooltip that explains why so the user understands what to do next.",
+    "Reduces support questions about why approval is blocked.",
+    "Anyone trying to approve a bid that has not had its scope signed off.",
+    ["ux", "tooltips"], "Tyler", 3, "11111111-1111-1111-1111-000000000001", "f-scope-gate", "3d ago"),
+];
+
+export const IDEA_STATUS_LABEL: Record<IdeaStatus, { label: string; kind: BadgeKind }> = {
+  captured:   { label: "Captured",     kind: "neutral" },
+  triaging:   { label: "Triaging",     kind: "info" },
+  approved:   { label: "Approved",     kind: "brand" },
+  in_project: { label: "In a project", kind: "success" },
+  rejected:   { label: "Rejected",     kind: "danger" },
+};
+
+export const IDEA_KIND_INFO: Record<IdeaKind, { label: string; accent: BadgeKind; iconName: "Folder" | "PlusCircle" | "Pencil" }> = {
+  new_project: { label: "New project", accent: "brand",  iconName: "Folder" },
+  new_feature: { label: "New feature", accent: "info",   iconName: "PlusCircle" },
+  enhancement: { label: "Enhancement", accent: "purple", iconName: "Pencil" },
+};

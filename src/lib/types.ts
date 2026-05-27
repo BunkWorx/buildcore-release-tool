@@ -159,6 +159,87 @@ export type TicketActivityEntry = {
   when: string;
 };
 
+export type Phase = {
+  id: string;
+  type: PhaseType;
+  name: string;
+  color: BadgeKind;        // 'purple' | 'brand' | 'info' | 'success' | 'warning' | 'neutral'
+  startMonth: number;
+  endMonth: number;
+  items: PhaseItem[];
+};
+
+export type PhaseItem = {
+  id: string;
+  name: string;
+  owner: string;
+  status: ItemStatus;
+};
+
+export type FeedbackItem = {
+  id: string;
+  projectId: string;
+  title: string;
+  body: string | null;
+  priority: FeedbackPriority;
+  status: FeedbackStatus;
+  source: string;
+  reportedBy: string | null;
+  createdAt: string;
+};
+
+export type TestCase = {
+  id: string;
+  projectId: string;
+  featureId: string | null;
+  featureName: string | null;
+  name: string;
+  steps: string[];
+  expected: string;
+  status: TestStatus;
+  owner: string;
+  lastRun: string | null;
+  failureNote: string | null;
+};
+
+export type PendingUpdate = {
+  id: string;
+  projectId: string;
+  type: PendingType;
+  title: string;
+  description: string;
+  featureId: string | null;
+  featureName: string | null;
+  sourceCaseId: string | null;
+  linkedTicketRefs: string[];
+  steps: string[];
+  expected: string | null;
+  createdAt: string;
+};
+
+export type PendingAreaGroup = {
+  feature: Feature | null;
+  items: PendingUpdate[];
+};
+
+export type Idea = {
+  id: string;
+  kind: IdeaKind;
+  status: IdeaStatus;
+  title: string;
+  description: string | null;
+  value: string | null;
+  audience: string | null;
+  tags: string[];
+  owner: string;
+  votes: number;
+  targetProjectId: string | null;
+  targetProjectName: string | null;
+  targetFeatureId: string | null;
+  targetFeatureName: string | null;
+  createdAt: string;
+};
+
 export type TicketDetail = Ticket & {
   repo: string | null;
   branch: string | null;

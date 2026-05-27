@@ -1,5 +1,13 @@
 import { notFound } from "next/navigation";
-import { getProject, getProjectCounts, getTicketDetail } from "@/lib/mock";
+import {
+  getProject,
+  getProjectCounts,
+  getProjectFeedback,
+  getProjectPhases,
+  getProjectTestCases,
+  getTicketDetail,
+  groupPendingByArea,
+} from "@/lib/mock";
 import { ProjectHeader } from "@/components/projects/ProjectHeader";
 import { ProjectTabs, type ProjectTab } from "@/components/projects/ProjectTabs";
 import { AboutCard } from "@/components/projects/overview/AboutCard";
@@ -8,6 +16,11 @@ import { ProductFeaturesCard } from "@/components/projects/overview/ProductFeatu
 import { ProjectActivityCard } from "@/components/projects/overview/ProjectActivityCard";
 import { TicketsKanban } from "@/components/projects/tickets/TicketsKanban";
 import { TicketDrawer } from "@/components/projects/tickets/TicketDrawer";
+import { ProjectGantt } from "@/components/projects/lifecycle/ProjectGantt";
+import { PhaseChecklists } from "@/components/projects/lifecycle/PhaseChecklists";
+import { FeedbackTable } from "@/components/projects/feedback/FeedbackTable";
+import { TestingTab } from "@/components/projects/testing/TestingTab";
+import { PendingTab } from "@/components/projects/pending/PendingTab";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -55,7 +68,14 @@ export default async function ProjectHubPage({ params, searchParams }: Props) {
         </>
       )}
 
-      {active === "lifecycle" && <TabPlaceholder label="Lifecycle (Gantt + phase checklists)" />}
+      {active === "lifecycle" && (
+        <>
+          <div className="mb-6">
+            <ProjectGantt phases={getProjectPhases(id)} />
+          </div>
+          <PhaseChecklists phases={getProjectPhases(id)} />
+        </>
+      )}
       {active === "tickets" && (
         <>
           <TicketsKanban
@@ -66,20 +86,14 @@ export default async function ProjectHubPage({ params, searchParams }: Props) {
           {openTicket && <TicketDrawer ticket={openTicket} projectId={id} />}
         </>
       )}
-      {active === "feedback" && <TabPlaceholder label="Feedback list" />}
-      {active === "testing" && <TabPlaceholder label="Testing — by feature / workflow" />}
-      {active === "pending" && <TabPlaceholder label="Pending updates — handoff outbox" />}
+      {active === "feedback" && <FeedbackTable items={getProjectFeedback(id)} />}
+      {active === "testing" && (
+        <TestingTab features={project.features} cases={getProjectTestCases(id)} />
+      )}
+      {active === "pending" && (
+        <PendingTab project={project} groups={groupPendingByArea(id)} />
+      )}
     </div>
   );
 }
 
-function TabPlaceholder({ label }: { label: string }) {
-  return (
-    <div className="rounded-[var(--bc-radius)] border border-dashed border-[var(--bc-border)] bg-white px-6 py-12 text-center">
-      <h3 className="mb-1.5">{label}</h3>
-      <p className="text-[13px] text-slate-500">
-        Lands in a follow-up commit. The Overview, Projects list, and Dashboard are live now.
-      </p>
-    </div>
-  );
-}

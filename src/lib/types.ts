@@ -137,3 +137,41 @@ export type ProjectCounts = {
   proposedFromIdeas: number;
 };
 
+export type Ticket = {
+  id: string;
+  ref: string;                 // BC-7544
+  projectId: string;
+  title: string;
+  stage: TicketStage;
+  priority: TicketPriority;
+  hasHandoff: boolean;         // true if ticket_details record exists
+};
+
+export type TicketAcceptance = { text: string; checked: boolean };
+
+export type TicketFile = { path: string; note: string | null };
+
+export type TicketActivityEntry = {
+  who: string;
+  what: string;
+  meta: string | null;
+  source: "github" | "agent" | "manual" | "portal" | null;
+  when: string;
+};
+
+export type TicketDetail = Ticket & {
+  repo: string | null;
+  branch: string | null;
+  prNumber: number | null;
+  summary: string | null;
+  background: string | null;
+  userStory: string | null;
+  engineeringNotes: string | null;
+  rolePermissionImpact: string | null;
+  handoffFile: string | null;
+  handoffDate: string | null;
+  acceptance: TicketAcceptance[];
+  files: TicketFile[];
+  activity: TicketActivityEntry[];
+};
+

@@ -1,15 +1,17 @@
 import { notFound } from "next/navigation";
-import { getProject, getProjectCounts } from "@/lib/mock";
+import { getProject, getProjectCounts, getTicketDetail } from "@/lib/mock";
 import { ProjectHeader } from "@/components/projects/ProjectHeader";
 import { ProjectTabs, type ProjectTab } from "@/components/projects/ProjectTabs";
 import { AboutCard } from "@/components/projects/overview/AboutCard";
 import { SnapshotCard } from "@/components/projects/overview/SnapshotCard";
 import { ProductFeaturesCard } from "@/components/projects/overview/ProductFeaturesCard";
 import { ProjectActivityCard } from "@/components/projects/overview/ProjectActivityCard";
+import { TicketsKanban } from "@/components/projects/tickets/TicketsKanban";
+import { TicketDrawer } from "@/components/projects/tickets/TicketDrawer";
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; feature?: string; ticket?: string }>;
 };
 
 const VALID_TABS: ProjectTab[] = [
@@ -23,7 +25,7 @@ const VALID_TABS: ProjectTab[] = [
 
 export default async function ProjectHubPage({ params, searchParams }: Props) {
   const { id } = await params;
-  const { tab: tabParam } = await searchParams;
+  const { tab: tabParam, feature: featureParam, ticket: ticketParam } = await searchParams;
   const project = getProject(id);
   if (!project) notFound();
 
@@ -32,6 +34,8 @@ export default async function ProjectHubPage({ params, searchParams }: Props) {
       ? (tabParam as ProjectTab)
       : "overview";
   const counts = getProjectCounts(id);
+  const openTicket =
+    active === "tickets" && ticketParam ? getTicketDetail(ticketParam) : null;
 
   return (
     <div>
@@ -52,7 +56,16 @@ export default async function ProjectHubPage({ params, searchParams }: Props) {
       )}
 
       {active === "lifecycle" && <TabPlaceholder label="Lifecycle (Gantt + phase checklists)" />}
-      {active === "tickets" && <TabPlaceholder label="Tickets Kanban" />}
+      {active === "tickets" && (
+        <>
+          <TicketsKanban
+            projectId={id}
+            projectRepo={project.externalRepo}
+            featureId={featureParam ?? null}
+          />
+          {openTicket && <TicketDrawer ticket={openTicket} projectId={id} />}
+        </>
+      )}
       {active === "feedback" && <TabPlaceholder label="Feedback list" />}
       {active === "testing" && <TabPlaceholder label="Testing — by feature / workflow" />}
       {active === "pending" && <TabPlaceholder label="Pending updates — handoff outbox" />}

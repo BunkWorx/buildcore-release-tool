@@ -9,6 +9,9 @@ import type {
   ProjectDetail,
   ProjectStatusKind,
   Task,
+  Ticket,
+  TicketDetail,
+  TicketPriority,
   TicketStage,
 } from "./types";
 
@@ -497,4 +500,199 @@ export function getProjectCounts(id: string): ProjectCounts {
 
 export function getProjectActivity(projectName: string): ActivityEvent[] {
   return MOCK_ACTIVITY.filter((a) => a.projectName === projectName);
+}
+
+// ---------------------------------------------------------------------------
+// Tickets + ticket details
+// ---------------------------------------------------------------------------
+const PROJECT_TICKETS: Record<string, Ticket[]> = {
+  "11111111-1111-1111-1111-000000000001": [
+    { id: "tk-bs-1", ref: "BC-7611", projectId: "11111111-1111-1111-1111-000000000001", title: "Vendor approval inline editing",  stage: "created",  priority: "high",     hasHandoff: false },
+    { id: "tk-bs-2", ref: "BC-7619", projectId: "11111111-1111-1111-1111-000000000001", title: "Bid sheet PDF export styling fix", stage: "created",  priority: "medium",   hasHandoff: false },
+    { id: "tk-bs-3", ref: "BC-7588", projectId: "11111111-1111-1111-1111-000000000001", title: "Add scope approval gate to bid review", stage: "in_dev",   priority: "high",     hasHandoff: true },
+    { id: "tk-bs-4", ref: "BC-7591", projectId: "11111111-1111-1111-1111-000000000001", title: "Migration: bids table backfill",  stage: "in_dev",   priority: "medium",   hasHandoff: false },
+    { id: "tk-bs-5", ref: "BC-7544", projectId: "11111111-1111-1111-1111-000000000001", title: "Role permission matrix for bid approvers", stage: "on_stage", priority: "critical", hasHandoff: true },
+    { id: "tk-bs-6", ref: "BC-7501", projectId: "11111111-1111-1111-1111-000000000001", title: "Bid line item drag reorder",      stage: "ready",    priority: "medium",   hasHandoff: true },
+    { id: "tk-bs-7", ref: "BC-7480", projectId: "11111111-1111-1111-1111-000000000001", title: "New bid creation wizard",         stage: "live",     priority: "high",     hasHandoff: false },
+    { id: "tk-bs-8", ref: "BC-7472", projectId: "11111111-1111-1111-1111-000000000001", title: "Vendor card redesign",            stage: "live",     priority: "low",      hasHandoff: false },
+  ],
+  "11111111-1111-1111-1111-000000000002": [
+    { id: "tk-cp-1", ref: "BC-7700", projectId: "11111111-1111-1111-1111-000000000002", title: "Migration dry-run report",        stage: "created",  priority: "high",     hasHandoff: false },
+    { id: "tk-cp-2", ref: "BC-7665", projectId: "11111111-1111-1111-1111-000000000002", title: "User mapping import script",      stage: "in_dev",   priority: "critical", hasHandoff: false },
+    { id: "tk-cp-3", ref: "BC-7670", projectId: "11111111-1111-1111-1111-000000000002", title: "Legacy order history backfill",   stage: "in_dev",   priority: "high",     hasHandoff: false },
+    { id: "tk-cp-4", ref: "BC-7610", projectId: "11111111-1111-1111-1111-000000000002", title: "Portal login DNS cutover",        stage: "live",     priority: "high",     hasHandoff: false },
+  ],
+  "11111111-1111-1111-1111-000000000003": [
+    { id: "tk-ft-1", ref: "BC-7750", projectId: "11111111-1111-1111-1111-000000000003", title: "Widget shell + open/close interaction", stage: "created", priority: "high", hasHandoff: false },
+  ],
+};
+
+export const TICKET_STAGES: Array<{ id: TicketStage; label: string; kind: BadgeKind }> = [
+  { id: "created",  label: "Created",            kind: "neutral" },
+  { id: "in_dev",   label: "In dev",             kind: "info" },
+  { id: "on_stage", label: "On stage",           kind: "purple" },
+  { id: "ready",    label: "Ready for release", kind: "warning" },
+  { id: "live",     label: "Live",               kind: "success" },
+];
+
+export const PRIORITY_KIND: Record<TicketPriority, BadgeKind> = {
+  critical: "danger",
+  high:     "warning",
+  medium:   "info",
+  low:      "neutral",
+};
+
+export function getProjectTickets(projectId: string): Ticket[] {
+  return PROJECT_TICKETS[projectId] ?? [];
+}
+
+// Mock ticket details — only seeded for the three tickets with full handoffs
+const TICKET_DETAILS: Record<string, TicketDetail> = {
+  "BC-7544": {
+    id: "tk-bs-5",
+    ref: "BC-7544",
+    projectId: "11111111-1111-1111-1111-000000000001",
+    title: "Role permission matrix for bid approvers",
+    stage: "on_stage",
+    priority: "critical",
+    hasHandoff: true,
+    repo: "evanedgeworth/Bid-Sheet-v2",
+    branch: "feat/bid-approver-permissions",
+    prNumber: 234,
+    summary:
+      "Enforce the BuildCore permission matrix on the bid approval flow so only roles with scope_approval authority can sign off on a bid, and only when their portal area permission for projects is at least edit.",
+    background:
+      "The current bid sheet lets any logged-in user complete a bid approval. With nine roles now in production and three approval gates planned (scope, change order, project close), we need a single permission-check layer in front of the approve action. Driven by BC-PORTAL-7511 through 7517 (canonical matrix).",
+    userStory:
+      'As a Project Manager, I can only approve a bid when my role grants scope_approval authority AND my projects area is at least "edit", so that bids can\'t be approved by users without the proper authority.',
+    engineeringNotes:
+      "Use the canonical permission matrix at ~/buildcore-tyler/handoffs/2026-05-24/2026-05-24-role-permissions-system-handoff.html as the source of truth. Authorities are stored on the user_role table as a JSONB column. The check should be a single function imported in both the page and the API route — do not duplicate the role list.",
+    rolePermissionImpact:
+      "No new portal areas or authorities are introduced. This ticket is the first consumer of scope_approval. After this lands, the matrix should be cross-referenced before any future approval gate (change_order_approval, project_close) is built.",
+    handoffFile: "2026-05-24-role-permissions-system-handoff.html",
+    handoffDate: "2026-05-24",
+    acceptance: [
+      { text: "Approve button hidden when current user lacks scope_approval authority", checked: true },
+      { text: "Approve button visible but disabled when authority present but projects area is view-only", checked: true },
+      { text: "Server-side check rejects approval POST when caller lacks authority, returns 403", checked: true },
+      { text: "Audit row written to bid_approval_audit on every attempt (approved AND rejected)", checked: false },
+      { text: "Unit tests cover all 9 roles against the approve endpoint", checked: false },
+    ],
+    files: [
+      { path: "src/app/(dashboard)/projects/[id]/bids/[bidId]/page.tsx", note: "hide/disable Approve button" },
+      { path: "src/app/api/bids/[bidId]/approve/route.ts", note: "server-side authority check" },
+      { path: "src/lib/permissions.ts", note: "add hasAuthority() helper" },
+      { path: "src/hooks/usePermissions.ts", note: "client hook reads current user authorities" },
+    ],
+    activity: [
+      { who: "Evan agent", what: "opened PR #234", meta: null,                   source: "github", when: "2h ago" },
+      { who: "Evan agent", what: "pushed 4 commits to feat/bid-approver-permissions", meta: null, source: "github", when: "5h ago" },
+      { who: "Evan agent", what: "moved",        meta: "In dev → On stage",      source: "agent",  when: "12m ago" },
+      { who: "Tyler",      what: "created from handoff", meta: null,            source: "manual", when: "2 days ago" },
+    ],
+  },
+  "BC-7588": {
+    id: "tk-bs-3",
+    ref: "BC-7588",
+    projectId: "11111111-1111-1111-1111-000000000001",
+    title: "Add scope approval gate to bid review",
+    stage: "in_dev",
+    priority: "high",
+    hasHandoff: true,
+    repo: "evanedgeworth/Bid-Sheet-v2",
+    branch: "feat/scope-approval-gate",
+    prNumber: 241,
+    summary:
+      'Insert a "Scope approval" step in the bid review flow that blocks the Approve action until the project\'s scope has been signed off by a user with scope_approval authority.',
+    background:
+      "Field teams have been approving bids before scope sign-off was complete, creating change-order rework downstream. Adding an explicit gate in the UI and the API surface prevents this.",
+    userStory:
+      "As an Operations Director, I can't finalize a bid approval until the project scope has been signed off, so that we stop approving bids against unfinished scopes.",
+    engineeringNotes:
+      "Reuse the existing scope_approvals Supabase table. Don't add a new state field — scope status is derived from latest row in scope_approvals for the project.",
+    rolePermissionImpact:
+      "No new portal areas. Reads scope_approval authority added in BC-7544. No changes to the 11 areas or 6 authorities.",
+    handoffFile: "2026-05-25-scope-approval-gate-handoff.html",
+    handoffDate: "2026-05-25",
+    acceptance: [
+      { text: "Bid review page shows a Scope-status banner (pending / approved / rejected)", checked: true },
+      { text: "Approve button disabled when scope status is pending or rejected", checked: true },
+      { text: "Tooltip explains why button is disabled", checked: false },
+      { text: "API endpoint returns 422 with reason when scope not approved", checked: false },
+    ],
+    files: [
+      { path: "src/app/(dashboard)/projects/[id]/bids/[bidId]/page.tsx", note: "add scope status banner" },
+      { path: "src/components/ScopeStatusBanner.tsx", note: "new component" },
+      { path: "src/app/api/bids/[bidId]/approve/route.ts", note: "add scope check" },
+    ],
+    activity: [
+      { who: "Evan agent", what: "opened PR #241", meta: null,             source: "github", when: "8h ago" },
+      { who: "Evan agent", what: "moved",         meta: "Created → In dev", source: "agent",  when: "yesterday" },
+      { who: "Tyler",      what: "created from handoff", meta: null,       source: "manual", when: "2 days ago" },
+    ],
+  },
+  "BC-7501": {
+    id: "tk-bs-6",
+    ref: "BC-7501",
+    projectId: "11111111-1111-1111-1111-000000000001",
+    title: "Bid line item drag reorder",
+    stage: "ready",
+    priority: "medium",
+    hasHandoff: true,
+    repo: "evanedgeworth/Bid-Sheet-v2",
+    branch: "feat/bid-line-reorder",
+    prNumber: 218,
+    summary:
+      "Let bid editors drag line items up and down within a bid section to reorder them. Order persists to the database.",
+    background:
+      "Currently line items appear in creation order with no way to reorder. Bid editors are deleting and re-creating items to get the right order, losing notes in the process.",
+    userStory:
+      "As a Bid Editor, I can drag a line item to a new position within its section, so I don't have to delete and recreate items to reorder them.",
+    engineeringNotes:
+      "Use @dnd-kit/core (already in deps). Add a sort_order int column to bid_lines via migration 0089.",
+    rolePermissionImpact:
+      "No role or permission changes. Anyone with edit access to a bid can reorder its line items.",
+    handoffFile: "2026-05-22-bid-line-reorder-handoff.html",
+    handoffDate: "2026-05-22",
+    acceptance: [
+      { text: "Drag handle visible on hover for each line item", checked: true },
+      { text: "Drop indicator shows where the item will land", checked: true },
+      { text: "Order persists after page refresh", checked: true },
+      { text: "Optimistic UI — reorder visible immediately, rollback on save error", checked: true },
+      { text: "Keyboard accessible — Up/Down arrows with modifier reorder", checked: true },
+    ],
+    files: [
+      { path: "src/components/BidLineItemList.tsx", note: "drag context + handle" },
+      { path: "src/hooks/useBidLineOrder.ts", note: "reorder logic + persistence" },
+      { path: "src/app/api/bids/[bidId]/lines/reorder/route.ts", note: "new endpoint" },
+    ],
+    activity: [
+      { who: "Evan agent", what: "moved",          meta: "On stage → Ready for release", source: "agent",  when: "2 days ago" },
+      { who: "Evan agent", what: "opened PR #218", meta: null,                            source: "github", when: "4 days ago" },
+      { who: "Tyler",      what: "created from handoff", meta: null,                     source: "manual", when: "5 days ago" },
+    ],
+  },
+};
+
+export function getTicketDetail(ref: string): TicketDetail | null {
+  return TICKET_DETAILS[ref] ?? null;
+}
+
+/** Get tickets for a project, optionally narrowed to a feature. */
+export function getProjectTicketsFiltered(
+  projectId: string,
+  featureId: string | null,
+): Ticket[] {
+  const tickets = getProjectTickets(projectId);
+  if (!featureId) return tickets;
+  const features = FEATURES_BY_PROJECT[projectId] ?? [];
+  const feature = features.find((f) => f.id === featureId);
+  if (!feature) return tickets;
+  const refSet = new Set(feature.ticketRefs);
+  return tickets.filter((t) => refSet.has(t.ref));
+}
+
+export function getFeatureById(projectId: string, featureId: string): Feature | null {
+  const features = FEATURES_BY_PROJECT[projectId] ?? [];
+  return features.find((f) => f.id === featureId) ?? null;
 }

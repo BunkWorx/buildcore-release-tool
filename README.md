@@ -2,6 +2,10 @@
 
 Project-centric release planning, feature tracking, testing, and engineering-handoff coordination for BuildCore. **Sandboxed — does not write to the `bid-sheet-v2` production database, repo, or runtime.**
 
+**Production:** https://buildcore-release-tool.vercel.app
+**Repo:** https://github.com/tylerwoodworth-cmd/buildcore-release-tool
+**Supabase project:** `buildcore-release-tool` (separate from bid-sheet-v2's project)
+
 ## Stack
 
 - Next.js 16 (App Router) + TypeScript
@@ -92,6 +96,12 @@ The only inbound integrations are read-only webhooks: Evan's agent posts ticket 
    - `/api/webhooks/github` (ticket sync from bid-sheet-v2 repo)
    - `/api/webhooks/tickets` (Evan's agent posting status updates)
    - `/api/webhooks/feedback` (BuildCore portal feedback submissions)
-5. Realtime — TODO (Supabase Realtime channels driving the sync indicator + live data)
+5. Realtime — partial ✓
+   - SyncIndicator subscribed to live channel state ✓
+   - MyTasks reads/writes/subscribes live ✓
+   - Other tables read-only via anon (writes through service-role API routes later)
 6. v1 → v2 import script — TODO
-7. Vercel deploy — TODO
+7. Vercel deploy ✓
+   - Production: https://buildcore-release-tool.vercel.app
+   - Env vars: GATE_PASSWORD + Supabase URL + anon key + service role key
+   - Deploy: `vercel deploy --prod --yes` (from this directory, already linked)

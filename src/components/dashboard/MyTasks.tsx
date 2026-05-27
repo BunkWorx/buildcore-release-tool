@@ -1,52 +1,173 @@
 "use client";
 
-import { useState } from "react";
-import { Check, Plus, Trash2, Ticket, MessageSquare, Link as LinkIcon } from "lucide-react";
+import { useEffect, useState } from "react";
+import {
+  Check,
+  Plus,
+  Trash2,
+  Ticket,
+  MessageSquare,
+  Link as LinkIcon,
+} from "lucide-react";
 import { cn } from "@/lib/cn";
-import { MOCK_TASKS } from "@/lib/mock";
+import { supabaseBrowser } from "@/lib/supabase/client";
 import type { Task } from "@/lib/types";
+
+const OWNER = "Tyler";
 
 const DUE_LABEL: Record<NonNullable<Task["due"]>, { label: string; cls: string }> = {
   today:     { label: "Today",     cls: "bg-danger-50 text-danger-700" },
   this_week: { label: "This week", cls: "bg-warning-50 text-warning-700" },
 };
 
-/** Client-side My tasks card. Holds tasks in component state until Phase 5
-    swaps the source for Supabase. The shape matches the Supabase `tasks`
-    table so the swap is mechanical. */
+type TaskRow = {
+  id: string;
+  title: string;
+  done: boolean;
+  link_type: Task["linkType"];
+  link_ref: string | null;
+  link_project_id: string | null;
+  link_project_name: string | null;
+  due: Task["due"];
+  created_at: string;
+};
+
+function rowToTask(r: TaskRow): Task {
+  return {
+    id: r.id,
+    title: r.title,
+    done: r.done,
+    linkType: r.link_type,
+    linkRef: r.link_ref,
+    linkProjectId: r.link_project_id,
+    linkProjectName: r.link_project_name,
+    due: r.due,
+  };
+}
+
+/** Live tasks card backed by Supabase.
+ *
+ *  - Initial load: SELECT from `tasks` filtered by owner.
+ *  - Mutations: INSERT / UPDATE / DELETE via the anon client (RLS allows
+ *    these on the tasks table only).
+ *  - Realtime: subscribed to postgres_changes on tasks — any insert/update/
+ *    delete from another tab (or a future webhook) appears here instantly. */
 export function MyTasks() {
-  const [tasks, setTasks] = useState<Task[]>(MOCK_TASKS);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [showDone, setShowDone] = useState(false);
   const [draft, setDraft] = useState("");
+
+  // Initial load + realtime subscription
+  useEffect(() => {
+    const sb = supabaseBrowser();
+    let mounted = true;
+
+    (async () => {
+      const { data, error } = await sb
+        .from("tasks")
+        .select(
+          "id, title, done, link_type, link_ref, link_project_id, link_project_name, due, created_at",
+        )
+        .eq("owner", OWNER)
+        .order("created_at", { ascending: false });
+      if (!mounted) return;
+      if (error) {
+        console.error("Tasks load failed:", error);
+      } else {
+        setTasks((data ?? []).map((r) => rowToTask(r as TaskRow)));
+      }
+      setLoaded(true);
+    })();
+
+    const channel = sb
+      .channel("tasks-mytasks")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "tasks", filter: `owner=eq.${OWNER}` },
+        (payload) => {
+          if (!mounted) return;
+          if (payload.eventType === "INSERT") {
+            setTasks((prev) => {
+              const t = rowToTask(payload.new as TaskRow);
+              if (prev.some((p) => p.id === t.id)) return prev;
+              return [t, ...prev];
+            });
+          } else if (payload.eventType === "UPDATE") {
+            setTasks((prev) => prev.map((p) => (p.id === payload.new.id ? rowToTask(payload.new as TaskRow) : p)));
+          } else if (payload.eventType === "DELETE") {
+            setTasks((prev) => prev.filter((p) => p.id !== payload.old.id));
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      mounted = false;
+      sb.removeChannel(channel);
+    };
+  }, []);
 
   const open = tasks.filter((t) => !t.done);
   const done = tasks.filter((t) => t.done);
   const visible = showDone ? tasks : open;
 
-  const add = (e: React.FormEvent) => {
+  const add = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!draft.trim()) return;
-    setTasks((prev) => [
-      {
-        id: `t-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        title: draft.trim(),
-        done: false,
-        linkType: null,
-        linkRef: null,
-        linkProjectId: null,
-        linkProjectName: null,
-        due: null,
-      },
-      ...prev,
-    ]);
+    const title = draft.trim();
+    if (!title) return;
     setDraft("");
+    const sb = supabaseBrowser();
+    const optimistic: Task = {
+      id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      title,
+      done: false,
+      linkType: null,
+      linkRef: null,
+      linkProjectId: null,
+      linkProjectName: null,
+      due: null,
+    };
+    setTasks((prev) => [optimistic, ...prev]);
+    const { data, error } = await sb
+      .from("tasks")
+      .insert({ owner: OWNER, title, done: false })
+      .select()
+      .single();
+    if (error) {
+      console.error("Insert failed:", error);
+      setTasks((prev) => prev.filter((t) => t.id !== optimistic.id));
+      return;
+    }
+    // Replace the optimistic row with the canonical one from the DB
+    setTasks((prev) => {
+      const real = rowToTask(data as TaskRow);
+      const without = prev.filter((t) => t.id !== optimistic.id);
+      if (without.some((p) => p.id === real.id)) return without;
+      return [real, ...without];
+    });
   };
 
-  const toggle = (id: string) =>
-    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
+  const toggle = async (id: string, currentlyDone: boolean) => {
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: !currentlyDone } : t)));
+    const sb = supabaseBrowser();
+    const { error } = await sb.from("tasks").update({ done: !currentlyDone }).eq("id", id);
+    if (error) {
+      console.error("Toggle failed:", error);
+      setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: currentlyDone } : t)));
+    }
+  };
 
-  const remove = (id: string) =>
+  const remove = async (id: string) => {
+    const removed = tasks.find((t) => t.id === id);
     setTasks((prev) => prev.filter((t) => t.id !== id));
+    const sb = supabaseBrowser();
+    const { error } = await sb.from("tasks").delete().eq("id", id);
+    if (error) {
+      console.error("Delete failed:", error);
+      if (removed) setTasks((prev) => [removed, ...prev]);
+    }
+  };
 
   return (
     <div
@@ -73,13 +194,20 @@ export function MyTasks() {
         </button>
       </div>
 
-      {visible.length === 0 ? (
+      {!loaded ? (
+        <div className="px-5 py-6 text-center text-[13px] text-slate-400">Loading...</div>
+      ) : visible.length === 0 ? (
         <div className="px-5 py-6 text-center text-[13px] text-slate-400">
           You&rsquo;re clear. Capture something below or star an item somewhere else.
         </div>
       ) : (
         visible.map((t) => (
-          <TaskRow key={t.id} task={t} onToggle={() => toggle(t.id)} onRemove={() => remove(t.id)} />
+          <TaskRowView
+            key={t.id}
+            task={t}
+            onToggle={() => toggle(t.id, t.done)}
+            onRemove={() => remove(t.id)}
+          />
         ))
       )}
 
@@ -107,7 +235,7 @@ export function MyTasks() {
   );
 }
 
-function TaskRow({
+function TaskRowView({
   task,
   onToggle,
   onRemove,
@@ -122,12 +250,7 @@ function TaskRow({
   const LinkIco = linkIcon;
 
   return (
-    <div
-      className={cn(
-        "group grid grid-cols-[22px_1fr_auto] items-center gap-3 border-b border-slate-100 px-5 py-2.5 last:border-b-0 hover:bg-slate-50",
-        task.done && "opacity-100",
-      )}
-    >
+    <div className="group grid grid-cols-[22px_1fr_auto] items-center gap-3 border-b border-slate-100 px-5 py-2.5 last:border-b-0 hover:bg-slate-50">
       <button
         type="button"
         onClick={onToggle}

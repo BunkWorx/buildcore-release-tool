@@ -1,9 +1,12 @@
 import type {
   ActivityEvent,
   BadgeKind,
+  Feature,
   FeatureStatus,
   IdeaKind,
   Project,
+  ProjectCounts,
+  ProjectDetail,
   ProjectStatusKind,
   Task,
   TicketStage,
@@ -231,3 +234,267 @@ export const IDEA_KIND_META: Record<IdeaKind, { label: string; iconName: string 
   new_feature:  { label: "New feature",  iconName: "PlusCircle" },
   enhancement:  { label: "Enhancement",  iconName: "Pencil" },
 };
+
+// ---------------------------------------------------------------------------
+// Per-project detail extensions
+// ---------------------------------------------------------------------------
+const FEATURES_BY_PROJECT: Record<string, Feature[]> = {
+  "11111111-1111-1111-1111-000000000001": [
+    {
+      id: "f-vendor-sourcing",
+      projectId: "11111111-1111-1111-1111-000000000001",
+      name: "Vendor sourcing wizard",
+      description:
+        "Step-by-step wizard for finding and inviting vendors to bid, replacing the old one-shot dialog.",
+      status: "live",
+      ticketRefs: ["BC-7480", "BC-7472"],
+      timelineStart: 1.5,
+      timelineEnd: 3.0,
+    },
+    {
+      id: "f-line-reorder",
+      projectId: "11111111-1111-1111-1111-000000000001",
+      name: "Drag-and-drop line items",
+      description:
+        "Reorder bid line items by dragging instead of deleting and recreating them. Notes and history are preserved.",
+      status: "ready",
+      ticketRefs: ["BC-7501"],
+      timelineStart: 2.0,
+      timelineEnd: 4.5,
+    },
+    {
+      id: "f-role-permissions",
+      projectId: "11111111-1111-1111-1111-000000000001",
+      name: "Role-based approval permissions",
+      description:
+        "Only users whose role grants scope approval authority can sign off on a bid. Other users see the approve button hidden or disabled.",
+      status: "in_testing",
+      ticketRefs: ["BC-7544"],
+      timelineStart: 3.0,
+      timelineEnd: 5.0,
+    },
+    {
+      id: "f-scope-gate",
+      projectId: "11111111-1111-1111-1111-000000000001",
+      name: "Scope approval gate",
+      description:
+        "Blocks bid approval until the project scope has been formally signed off. Prevents downstream change-order rework.",
+      status: "in_dev",
+      ticketRefs: ["BC-7588"],
+      timelineStart: 4.0,
+      timelineEnd: 6.0,
+    },
+    {
+      id: "f-pdf-export",
+      projectId: "11111111-1111-1111-1111-000000000001",
+      name: "Improved PDF export",
+      description:
+        "Cleaner bid sheet PDFs with better handling of long vendor names and multi-section layouts.",
+      status: "in_dev",
+      ticketRefs: ["BC-7619"],
+      timelineStart: 4.0,
+      timelineEnd: 6.5,
+    },
+    {
+      id: "f-inline-vendor-edit",
+      projectId: "11111111-1111-1111-1111-000000000001",
+      name: "Inline vendor approval editing",
+      description:
+        "Edit vendor approval status without leaving the bid page, replacing the slow modal-based flow.",
+      status: "planned",
+      ticketRefs: ["BC-7611"],
+      timelineStart: 5.0,
+      timelineEnd: 6.5,
+    },
+    {
+      id: "f-migration",
+      projectId: "11111111-1111-1111-1111-000000000001",
+      name: "Migration: bids table backfill",
+      description:
+        "Backfills legacy bid data into the new schema with no downtime. Required to ship the rest of v2.",
+      status: "in_dev",
+      ticketRefs: ["BC-7591"],
+      timelineStart: 3.0,
+      timelineEnd: 5.5,
+    },
+  ],
+  "11111111-1111-1111-1111-000000000002": [
+    {
+      id: "f-dns-cutover",
+      projectId: "11111111-1111-1111-1111-000000000002",
+      name: "Portal login DNS cutover",
+      description:
+        "Repoint legacy portal login URL to the new BuildCore portal so existing bookmarks keep working.",
+      status: "live",
+      ticketRefs: ["BC-7610"],
+      timelineStart: 1.0,
+      timelineEnd: 2.0,
+    },
+    {
+      id: "f-user-mapping",
+      projectId: "11111111-1111-1111-1111-000000000002",
+      name: "User mapping import",
+      description:
+        "One-time script that maps every legacy user record to the new identity model, including saved preferences.",
+      status: "in_dev",
+      ticketRefs: ["BC-7665"],
+      timelineStart: 3.0,
+      timelineEnd: 5.5,
+    },
+    {
+      id: "f-order-backfill",
+      projectId: "11111111-1111-1111-1111-000000000002",
+      name: "Order history backfill",
+      description:
+        "Backfills every legacy order so clients see their full history on day one of the new portal.",
+      status: "in_dev",
+      ticketRefs: ["BC-7670"],
+      timelineStart: 4.0,
+      timelineEnd: 6.0,
+    },
+    {
+      id: "f-dry-run",
+      projectId: "11111111-1111-1111-1111-000000000002",
+      name: "Migration dry-run report",
+      description:
+        "Run the full migration against a copy of production and produce a report showing what would change before we cut over.",
+      status: "planned",
+      ticketRefs: ["BC-7700"],
+      timelineStart: 5.0,
+      timelineEnd: 7.0,
+    },
+  ],
+  "11111111-1111-1111-1111-000000000003": [
+    {
+      id: "f-widget-shell",
+      projectId: "11111111-1111-1111-1111-000000000003",
+      name: "Floating feedback widget",
+      description:
+        "A small button anchored to the bottom-right of every portal page that opens a feedback form on click.",
+      status: "in_dev",
+      ticketRefs: ["BC-7750"],
+      timelineStart: 4.0,
+      timelineEnd: 7.0,
+    },
+    {
+      id: "f-auto-routing",
+      projectId: "11111111-1111-1111-1111-000000000003",
+      name: "Automatic project routing",
+      description:
+        "Reads the current portal route to guess which project the feedback belongs to and pre-selects it.",
+      status: "planned",
+      ticketRefs: [],
+      timelineStart: 6.0,
+      timelineEnd: 8.0,
+    },
+    {
+      id: "f-screenshot-attach",
+      projectId: "11111111-1111-1111-1111-000000000003",
+      name: "Screenshot attachment",
+      description:
+        "Lets users attach a screenshot of what they were looking at when they submitted the feedback.",
+      status: "planned",
+      ticketRefs: [],
+      timelineStart: 7.0,
+      timelineEnd: 9.0,
+    },
+  ],
+};
+
+const PROJECT_EXTRAS: Record<
+  string,
+  Pick<ProjectDetail, "objective" | "audience" | "successMetrics" | "externalRepo">
+> = {
+  "11111111-1111-1111-1111-000000000001": {
+    objective:
+      "Cut the time from project award to vendor-approved bid from 9 days to 3, and stop the leakage of approved bids that bypass scope sign-off.",
+    audience:
+      "Project managers, operations directors, and vendor coordinators who create and approve bids on every BuildCore project.",
+    successMetrics: [
+      "Median time-to-approved-bid under 3 business days",
+      "Zero approved bids without a corresponding scope sign-off",
+      "PM satisfaction score (in-app survey) above 4 of 5",
+    ],
+    externalRepo: "evanedgeworth/Bid-Sheet-v2",
+  },
+  "11111111-1111-1111-1111-000000000002": {
+    objective:
+      "Move every active client off the legacy portal and on to the new BuildCore portal without losing their order history, saved preferences, or sign-in continuity.",
+    audience:
+      "All active BuildCore clients and the support team who fields their tickets.",
+    successMetrics: [
+      "Less than 1% of active clients hit a login error in week one",
+      "Zero data-loss incidents on order history",
+      "Support ticket volume returns to baseline within two weeks",
+    ],
+    externalRepo: "evanedgeworth/buildcore-client-portal",
+  },
+  "11111111-1111-1111-1111-000000000003": {
+    objective:
+      "Give every user a one-click way to send feedback from anywhere in BuildCore, with the resulting ticket auto-routed to the correct project owner.",
+    audience:
+      "All BuildCore portal users plus the product owner who triages incoming feedback.",
+    successMetrics: [
+      "Median time from feedback submitted to ticket triaged under 2 hours",
+      "Auto-routing accuracy above 80% (correct project on first try)",
+      "At least 25% of weekly active users submit feedback in the first month",
+    ],
+    externalRepo: "evanedgeworth/buildcore-portal",
+  },
+};
+
+const PROJECT_COUNTS: Record<string, ProjectCounts> = {
+  "11111111-1111-1111-1111-000000000001": {
+    tickets: 8,
+    feedback: 4,
+    testing: 19,
+    pending: 2,
+    proposedFromIdeas: 5,
+  },
+  "11111111-1111-1111-1111-000000000002": {
+    tickets: 4,
+    feedback: 2,
+    testing: 1,
+    pending: 1,
+    proposedFromIdeas: 0,
+  },
+  "11111111-1111-1111-1111-000000000003": {
+    tickets: 1,
+    feedback: 0,
+    testing: 0,
+    pending: 0,
+    proposedFromIdeas: 0,
+  },
+};
+
+export function getProject(id: string): ProjectDetail | null {
+  const project = MOCK_PROJECTS.find((p) => p.id === id);
+  if (!project) return null;
+  const extras = PROJECT_EXTRAS[id] ?? {
+    objective: null,
+    audience: null,
+    successMetrics: [],
+    externalRepo: null,
+  };
+  return {
+    ...project,
+    ...extras,
+    features: FEATURES_BY_PROJECT[id] ?? [],
+  };
+}
+
+export function getProjectCounts(id: string): ProjectCounts {
+  return (
+    PROJECT_COUNTS[id] ?? {
+      tickets: 0,
+      feedback: 0,
+      testing: 0,
+      pending: 0,
+      proposedFromIdeas: 0,
+    }
+  );
+}
+
+export function getProjectActivity(projectName: string): ActivityEvent[] {
+  return MOCK_ACTIVITY.filter((a) => a.projectName === projectName);
+}

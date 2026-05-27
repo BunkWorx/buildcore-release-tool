@@ -109,3 +109,31 @@ export type ActivityEvent = {
 };
 
 export type StatusBadgeMap = Record<string, { label: string; kind: BadgeKind }>;
+
+export type Feature = {
+  id: string;
+  projectId: string;
+  name: string;
+  description: string | null;
+  status: FeatureStatus;
+  ticketRefs: string[];
+  timelineStart: number | null;
+  timelineEnd: number | null;
+};
+
+export type ProjectDetail = Project & {
+  objective: string | null;
+  audience: string | null;
+  successMetrics: string[];
+  externalRepo: string | null;
+  features: Feature[];
+};
+
+export type ProjectCounts = {
+  tickets: number;
+  feedback: number;
+  testing: number;
+  pending: number;
+  proposedFromIdeas: number;
+};
+

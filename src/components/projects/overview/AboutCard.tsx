@@ -7,49 +7,64 @@ type Props = { project: ProjectDetail };
 export function AboutCard({ project }: Props) {
   return (
     <div className="rounded-[var(--bc-radius)] border border-[var(--bc-border)] bg-white p-6 shadow-[var(--bc-shadow-xs)]">
-      <Label>About this project</Label>
-      <p className="mb-4 text-[14px] leading-relaxed">{project.description}</p>
+      <Section label="About this project">
+        <p>{project.description}</p>
+      </Section>
 
       {project.objective && (
-        <>
-          <Label>Objective</Label>
-          <p className="mb-4 text-[14px] leading-relaxed">{project.objective}</p>
-        </>
+        <Section label="Objective">
+          <p>{project.objective}</p>
+        </Section>
       )}
 
       {project.audience && (
-        <>
-          <Label>Audience</Label>
-          <p className="mb-4 text-[14px] leading-relaxed">{project.audience}</p>
-        </>
+        <Section label="Audience">
+          <p>{project.audience}</p>
+        </Section>
       )}
 
       {project.successMetrics.length > 0 && (
-        <>
-          <Label>Success metrics</Label>
-          <ul className="list-none p-0">
+        <Section label="Success metrics" last>
+          <ol className="m-0 list-none p-0">
             {project.successMetrics.map((m, i) => (
               <li
                 key={i}
-                className="relative py-1 pl-7 text-[13.5px] leading-relaxed"
+                className="relative py-1.5 pl-8 text-[13.5px] leading-relaxed"
               >
-                <span className="absolute left-0 top-1.5 inline-flex h-4 w-4 items-center justify-center rounded bg-brand-50 text-[10px] font-bold text-brand-700">
+                <span
+                  className="absolute left-0 top-1.5 inline-flex h-[18px] w-[18px] items-center justify-center rounded text-[10px] font-bold"
+                  style={{
+                    background: "var(--bc-brand-50)",
+                    color: "var(--bc-brand-700)",
+                  }}
+                >
                   {i + 1}
                 </span>
                 {m}
               </li>
             ))}
-          </ul>
-        </>
+          </ol>
+        </Section>
       )}
     </div>
   );
 }
 
-function Label({ children }: { children: React.ReactNode }) {
+function Section({
+  label,
+  children,
+  last,
+}: {
+  label: string;
+  children: React.ReactNode;
+  last?: boolean;
+}) {
   return (
-    <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-      {children}
+    <div className={last ? "" : "mb-5"}>
+      <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+        {label}
+      </div>
+      <div className="text-[14px] leading-relaxed">{children}</div>
     </div>
   );
 }

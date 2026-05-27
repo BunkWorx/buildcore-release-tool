@@ -83,65 +83,70 @@
   --bc-navbar-height: 68px;
 }
 
-/* Expose tokens to Tailwind's utility classes. */
-@theme inline {
-  --color-brand-50:  var(--bc-brand-50);
-  --color-brand-100: var(--bc-brand-100);
-  --color-brand-300: var(--bc-brand-300);
-  --color-brand-500: var(--bc-brand-500);
-  --color-brand-600: var(--bc-brand-600);
-  --color-brand-700: var(--bc-brand-700);
-  --color-brand-800: var(--bc-brand-800);
+/* Expose tokens to Tailwind's utility classes.
+ *
+ * Use literal hex values (not var() references) so Tailwind v4 reliably
+ * emits utilities like `bg-brand-50`, `text-warning-700`, etc. With the
+ * `inline` keyword + var(...) the generator sometimes failed to emit the
+ * soft-tone backgrounds, leaving badges flat. */
+@theme {
+  --color-brand-50:  #E6F7F8;
+  --color-brand-100: #B3E8EB;
+  --color-brand-300: #66C2C8;
+  --color-brand-500: #00A5AF;
+  --color-brand-600: #008C95;
+  --color-brand-700: #00737A;
+  --color-brand-800: #005A5F;
 
-  --color-slate-50:  var(--bc-slate-50);
-  --color-slate-100: var(--bc-slate-100);
-  --color-slate-200: var(--bc-slate-200);
-  --color-slate-300: var(--bc-slate-300);
-  --color-slate-400: var(--bc-slate-400);
-  --color-slate-500: var(--bc-slate-500);
-  --color-slate-600: var(--bc-slate-600);
-  --color-slate-700: var(--bc-slate-700);
-  --color-slate-800: var(--bc-slate-800);
-  --color-slate-900: var(--bc-slate-900);
+  --color-slate-50:  #F9FAFB;
+  --color-slate-100: #F3F4F6;
+  --color-slate-200: #E5E7EB;
+  --color-slate-300: #D1D5DB;
+  --color-slate-400: #9CA3AF;
+  --color-slate-500: #6B7280;
+  --color-slate-600: #4B5563;
+  --color-slate-700: #374151;
+  --color-slate-800: #1F2937;
+  --color-slate-900: #111827;
 
-  --color-success-50:  var(--bc-success-50);
-  --color-success-100: var(--bc-success-100);
-  --color-success-600: var(--bc-success-600);
-  --color-success-700: var(--bc-success-700);
+  --color-success-50:  #ECFDF5;
+  --color-success-100: #D1FAE5;
+  --color-success-600: #059669;
+  --color-success-700: #047857;
 
-  --color-danger-50:  var(--bc-danger-50);
-  --color-danger-100: var(--bc-danger-100);
-  --color-danger-600: var(--bc-danger-600);
-  --color-danger-700: var(--bc-danger-700);
+  --color-danger-50:  #FFF1F2;
+  --color-danger-100: #FFE4E6;
+  --color-danger-600: #E11D48;
+  --color-danger-700: #BE123C;
 
-  --color-warning-50:  var(--bc-warning-50);
-  --color-warning-100: var(--bc-warning-100);
-  --color-warning-600: var(--bc-warning-600);
-  --color-warning-700: var(--bc-warning-700);
+  --color-warning-50:  #FFFBEB;
+  --color-warning-100: #FEF3C7;
+  --color-warning-600: #D97706;
+  --color-warning-700: #B45309;
 
-  --color-info-50:  var(--bc-info-50);
-  --color-info-100: var(--bc-info-100);
-  --color-info-600: var(--bc-info-600);
-  --color-info-700: var(--bc-info-700);
+  --color-info-50:  #EFF6FF;
+  --color-info-100: #DBEAFE;
+  --color-info-600: #2563EB;
+  --color-info-700: #1D4ED8;
 
-  --color-purple-50:  var(--bc-purple-50);
-  --color-purple-100: var(--bc-purple-100);
-  --color-purple-600: var(--bc-purple-600);
-  --color-purple-700: var(--bc-purple-700);
+  --color-purple-50:  #F5F3FF;
+  --color-purple-100: #EDE9FE;
+  --color-purple-600: #7C3AED;
+  --color-purple-700: #6D28D9;
 
-  --color-bg-page: var(--bc-bg-page);
-  --color-bg-card: var(--bc-bg-card);
-  --color-border:  var(--bc-border);
+  --color-bg-page: #F9FAFB;
+  --color-bg-card: #FFFFFF;
+  --color-border:  #E5E7EB;
 
-  --radius:      var(--bc-radius);
-  --radius-sm:   var(--bc-radius-sm);
-  --radius-xs:   var(--bc-radius-xs);
-  --radius-full: var(--bc-radius-full);
+  --radius:      12px;
+  --radius-sm:   8px;
+  --radius-xs:   6px;
+  --radius-full: 9999px;
 
-  --shadow-xs: var(--bc-shadow-xs);
-  --shadow-sm: var(--bc-shadow-sm);
-  --shadow-md: var(--bc-shadow-md);
-  --shadow-lg: var(--bc-shadow-lg);
+  --shadow-xs: 0 1px 2px rgba(29, 41, 61, 0.05);
+  --shadow-sm: 0 1px 3px rgba(29, 41, 61, 0.08);
+  --shadow-md: 0 4px 6px -1px rgba(29, 41, 61, 0.08), 0 2px 4px -2px rgba(29, 41, 61, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(29, 41, 61, 0.08), 0 4px 6px -4px rgba(29, 41, 61, 0.05);
 
   --font-sans: "Roboto", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;

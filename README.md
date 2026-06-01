@@ -3,7 +3,7 @@
 Project-centric release planning, feature tracking, testing, and engineering-handoff coordination for BuildCore. **Sandboxed — does not write to the `bid-sheet-v2` production database, repo, or runtime.**
 
 **Production:** https://buildcore-release-tool.vercel.app
-**Repo:** https://github.com/tylerwoodworth-cmd/buildcore-release-tool
+**Repo:** https://github.com/BunkWorx/buildcore-release-tool
 **Supabase project:** `buildcore-release-tool` (separate from bid-sheet-v2's project)
 
 ## Stack

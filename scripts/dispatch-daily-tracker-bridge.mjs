@@ -27,6 +27,20 @@ function ghJson(args) {
   return JSON.parse(out || '{}');
 }
 
+function gh(args, input) {
+  const token = required('BUILDCORE_TRACKER_PUSH_TOKEN');
+  execFileSync('gh', args, {
+    input,
+    stdio: ['pipe', 'inherit', 'inherit'],
+    encoding: 'utf8',
+    env: { ...process.env, GH_TOKEN: token },
+  });
+}
+
+function isDryRun() {
+  return env('DRY_RUN') === '1' || env('DRY_RUN').toLowerCase() === 'true';
+}
+
 function main() {
   const repo = env('GITHUB_REPOSITORY') || 'BunkWorx/buildcore-release-tool';
   const sha = required('AFTER_SHA');
@@ -52,33 +66,38 @@ function main() {
       ? `https://github.com/${repo}/compare/${before}...${sha}`
       : commitUrl;
 
-  execFileSync(
-    'gh',
+  const payload = {
+    event_type: 'tyler-repo-bridge',
+    client_payload: {
+      repo,
+      branch: 'main',
+      commit: sha,
+      commit_url: commitUrl,
+      compare_url: compareUrl,
+      message,
+      summary: message,
+      sender,
+      priority: 'fyi',
+      action_required: false,
+      files: files.slice(0, 20),
+    },
+  };
+
+  if (isDryRun()) {
+    console.log(JSON.stringify(payload, null, 2));
+    return;
+  }
+
+  gh(
     [
       'api',
       'repos/BunkWorx/buildcore-daily-tracker/dispatches',
-      '-f',
-      'event_type=tyler-repo-bridge',
-      '-f',
-      `client_payload[repo]=${repo}`,
-      '-f',
-      'client_payload[branch]=main',
-      '-f',
-      `client_payload[commit]=${sha}`,
-      '-f',
-      `client_payload[commit_url]=${commitUrl}`,
-      '-f',
-      `client_payload[compare_url]=${compareUrl}`,
-      '-f',
-      `client_payload[message]=${message}`,
-      '-f',
-      `client_payload[summary]=${message}`,
-      '-f',
-      `client_payload[sender]=${sender}`,
-      '-f',
-      `client_payload[files]=${files.slice(0, 20).join(',')}`,
+      '--method',
+      'POST',
+      '--input',
+      '-',
     ],
-    { stdio: 'inherit', env: { ...process.env, GH_TOKEN: required('BUILDCORE_TRACKER_PUSH_TOKEN') } },
+    JSON.stringify(payload),
   );
 
   console.log(`dispatch-daily-tracker-bridge: notified daily tracker for ${repo}@${sha.slice(0, 7)}`);

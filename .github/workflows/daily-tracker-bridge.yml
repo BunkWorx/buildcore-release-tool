@@ -1,0 +1,36 @@
+name: Daily tracker bridge
+
+# Keep BunkWorx/buildcore-daily-tracker in sync when the release tool repo changes.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  bridge:
+    name: Notify daily tracker
+    runs-on: ubuntu-latest
+    if: >-
+      github.actor != 'buildcore-tracker-bot' &&
+      github.actor != 'buildcore-tracker-bridge'
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Dispatch tyler-repo-bridge
+        env:
+          BUILDCORE_TRACKER_PUSH_TOKEN: ${{ secrets.BUILDCORE_TRACKER_PUSH_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          AFTER_SHA: ${{ github.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+          GITHUB_ACTOR: ${{ github.actor }}
+        run: node scripts/dispatch-daily-tracker-bridge.mjs

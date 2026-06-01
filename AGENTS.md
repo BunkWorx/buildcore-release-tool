@@ -6,7 +6,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 ## BuildCore Linear And Tracker Bridge
 
-- Before meaningful work, run `~/buildcore-daily-tracker/bin/linear-agent context --team BC --limit 12`, then `~/buildcore-daily-tracker/bin/inbox`.
+- Before meaningful work, run `~/buildcore-daily-tracker/bin/start-session`.
 - Linear is the live task brain for agents. The daily tracker is the readable log and Evan/Tyler message queue.
 - Before stopping, append a Linear receipt with `~/buildcore-daily-tracker/bin/linear-agent complete <BC-ID> --done "..." --verified "..." --left "..."`.
 - If a release-tool change affects Evan or Tyler, send a tracker message before stopping. Anything asking for testing, review, approval, a decision, or Quality Assurance must be `question` or `urgent`, not `fyi`.

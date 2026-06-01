@@ -75,7 +75,6 @@ function main() {
       commit_url: commitUrl,
       compare_url: compareUrl,
       message,
-      summary: message,
       sender,
       priority: 'fyi',
       action_required: false,

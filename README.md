@@ -31,6 +31,14 @@ Login is Supabase email/password via `@supabase/ssr`, enforced in `src/middlewar
   ```
 - **Supabase Auth redirect URL (production):** `https://buildcore-release-tool-six.vercel.app/auth/callback`
 
+## Team view
+
+`/team` answers who is working on what and each person's priorities. Tickets carry an optional assignee (`tickets.assigned_to`) and projects carry a structured owner (`projects.owner_id`), both foreign keys to `release_tool_profiles`. The page groups tickets per person, sorted by priority then stage, next to the projects they own, with an inline dropdown to assign. Unassigned tickets sit in a strip at the top.
+
+- Assignment writes go through a server action (`src/app/(app)/team/actions.ts`) using the service-role client, gated on a signed-in allow-listed user. No browser write access is added to the tables.
+- The roster is read with the service-role client because RLS on `release_tool_profiles` only exposes a user's own row.
+- Schema added in migration `0004_assignment_and_team_view.sql`.
+
 ## Local development
 
 ```bash
@@ -62,8 +70,10 @@ src/
     layout.tsx                # Root layout (fonts + AppShell)
     login/page.tsx            # Supabase email/password sign-in
     auth/callback/route.ts    # Supabase auth callback
-    (app)/                    # Authenticated app: dashboard (page.tsx), projects, roadmap, ideas
+    (app)/                    # Authenticated app: dashboard (page.tsx), projects, roadmap, ideas, team
+      team/                   # Team view: page.tsx, AssignSelect.tsx, actions.ts (assign server actions)
     api/
+      version/route.ts        # Public build-commit endpoint (used by the deploy-freshness smoke check)
       webhooks/
         tickets/route.ts      # Staging automation / agent posts ticket stage (Bearer auth)
         github/route.ts       # GitHub ticket sync
@@ -73,7 +83,7 @@ src/
     auth/allowed-emails.ts    # Invite allowlist + production fallback
     supabase/                 # browser / client / server (service-role) / middleware clients
 supabase/
-  migrations/                 # 0001 schema, 0002 task writes, 0003 auth profiles + RLS
+  migrations/                 # 0001 schema, 0002 task writes, 0003 auth profiles + RLS, 0004 assignment + team view
 scripts/
   provision-release-tool-user.mjs   # Create or reset an invite user
   import-from-v1.mjs                 # One-shot v1 → v2 data import
@@ -97,6 +107,12 @@ When **Bid-Sheet-v2** merges to `staging` and the Vercel staging deploy succeeds
 
 Vercel project `bunkworks/buildcore-release-tool`, linked to this repo. Production environment variables live in the Vercel dashboard (Supabase URL + keys, `RELEASE_TOOL_ALLOWED_EMAILS`, `TICKETS_WEBHOOK_SECRET`). A push to `main` deploys production at https://buildcore-release-tool-six.vercel.app, or run `vercel deploy --prod --yes` from this directory.
 
+> **Heads up:** Vercel's GitHub auto-deploy occasionally drops a push to `main` (the webhook silently misses), leaving production on the previous build. The smoke test below catches this. To recover, run `vercel deploy --prod --yes` from this directory on `main`.
+
 ## Health check
 
-A scheduled GitHub Actions workflow (`.github/workflows/smoke-test.yml`) pings the production login page (expects `200`) and the ticket webhook unauthenticated (expects `401`) so an outage or broken deploy surfaces in Actions rather than from a user. It can also be run on demand from the Actions tab.
+A scheduled GitHub Actions workflow (`.github/workflows/smoke-test.yml`) guards production and can also be run on demand from the Actions tab. It checks:
+
+- The login page returns `200` (app is up).
+- The ticket webhook rejects an unauthenticated request (`401`) and accepts the configured secret (`400` on an empty body, proving the secret matches without writing data).
+- **Deploy freshness:** production's `/api/version` reports the same commit that is on `main`. If it does not match within a few minutes of a push, the run fails with a message to run `vercel deploy --prod` — this is how a missed/stale Vercel deploy gets caught automatically.

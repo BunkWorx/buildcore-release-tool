@@ -7,7 +7,7 @@
  * Schema reference: supabase/migrations/0001_initial_schema.sql
  */
 
-import { createClient } from "./supabase/server";
+import { createClient, supabaseService } from "./supabase/server";
 import { getFeatureById as getFeatureByIdLocal } from "./mock"; // used while we still resolve feature names locally
 import type {
   ActivityEvent,
@@ -21,6 +21,9 @@ import type {
   Project,
   ProjectCounts,
   ProjectDetail,
+  TeamMember,
+  TeamProject,
+  TeamTicket,
   TestCase,
   Ticket,
   TicketDetail,
@@ -625,3 +628,95 @@ type IdeaRow = {
 // Suppress unused-type warnings; keeping the type aliases as documentation
 type _Suppress = PhaseType | TicketStage | TicketPriority | FeedbackPriority | FeedbackStatus | TaskLinkType | BadgeKind;
 type __unused = _Suppress;
+
+// ---------------------------------------------------------------------------
+// Team view (BC-271) — assignment + per-person priorities
+// ---------------------------------------------------------------------------
+function initialsOf(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
+export async function getTeamMembers(): Promise<TeamMember[]> {
+  // Service-role read: the team roster (names + roles) must be visible to every
+  // member so they can see each other and assign work. RLS on
+  // release_tool_profiles only allows reading your OWN row, so the cookie-scoped
+  // client would return just the current user.
+  const sb = supabaseService();
+  const { data, error } = await sb
+    .from("release_tool_profiles")
+    .select("id, display_name, role_label, email")
+    .order("display_name");
+  if (error) throw error;
+  return (data ?? []).map((p) => {
+    const displayName = p.display_name ?? p.email;
+    return {
+      id: p.id,
+      displayName,
+      roleLabel: p.role_label ?? "Member",
+      email: p.email,
+      initials: initialsOf(displayName),
+    };
+  });
+}
+
+export async function getTeamTickets(): Promise<TeamTicket[]> {
+  const sb = await createClient();
+  const [members, { data, error }] = await Promise.all([
+    getTeamMembers(),
+    sb
+      .from("tickets")
+      .select(
+        "id, ref, title, stage, priority, assigned_to, project_id, project:projects(name)",
+      )
+      .order("ref"),
+  ]);
+  if (error) throw error;
+  const nameById = new Map(members.map((m) => [m.id, m.displayName]));
+  return (data ?? []).map((t: TeamTicketRow) => ({
+    id: t.id,
+    ref: t.ref,
+    title: t.title,
+    stage: t.stage,
+    priority: t.priority,
+    projectId: t.project_id,
+    projectName: one(t.project)?.name ?? null,
+    assigneeId: t.assigned_to,
+    assigneeName: t.assigned_to ? nameById.get(t.assigned_to) ?? null : null,
+  }));
+}
+
+export async function getTeamProjects(): Promise<TeamProject[]> {
+  const sb = await createClient();
+  const { data, error } = await sb
+    .from("projects")
+    .select(
+      "id, name, status, status_kind, completion, target_release_date, owner_id",
+    )
+    .order("sort_order");
+  if (error) throw error;
+  return (data ?? []).map((p) => ({
+    id: p.id,
+    name: p.name,
+    status: p.status,
+    statusKind: p.status_kind,
+    completion: p.completion,
+    targetReleaseDate: p.target_release_date,
+    ownerId: p.owner_id,
+  }));
+}
+
+type TeamTicketRow = {
+  id: string;
+  ref: string;
+  title: string;
+  stage: TicketStage;
+  priority: TicketPriority;
+  assigned_to: string | null;
+  project_id: string;
+  project: { name: string } | { name: string }[] | null;
+};

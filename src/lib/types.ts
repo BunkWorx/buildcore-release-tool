@@ -257,3 +257,36 @@ export type TicketDetail = Ticket & {
   activity: TicketActivityEntry[];
 };
 
+// ---------------------------------------------------------------------------
+// Team view — who is working on what + each person's priorities (BC-271)
+// ---------------------------------------------------------------------------
+export type TeamMember = {
+  id: string;
+  displayName: string;
+  roleLabel: string;
+  email: string;
+  initials: string;
+};
+
+export type TeamTicket = {
+  id: string;
+  ref: string;
+  title: string;
+  stage: TicketStage;
+  priority: TicketPriority;
+  projectId: string;
+  projectName: string | null;
+  assigneeId: string | null;
+  assigneeName: string | null;
+};
+
+export type TeamProject = {
+  id: string;
+  name: string;
+  status: string | null;
+  statusKind: ProjectStatusKind;
+  completion: number;
+  targetReleaseDate: string | null;
+  ownerId: string | null;
+};
+

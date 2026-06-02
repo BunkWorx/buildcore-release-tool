@@ -1,36 +1,99 @@
-name: Daily tracker bridge
-
-# Keep BunkWorx/buildcore-daily-tracker in sync when the release tool repo changes.
+name: BuildCore tracker bridge
 
 on:
   push:
-    branches: [main]
+    branches:
+      - "**"
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review, edited]
+  workflow_dispatch:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
-  bridge:
-    name: Notify daily tracker
+  dispatch:
+    name: Notify tracker and Linear
     runs-on: ubuntu-latest
     if: >-
       github.actor != 'buildcore-tracker-bot' &&
       github.actor != 'buildcore-tracker-bridge'
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-
-      - name: Dispatch tyler-repo-bridge
+      - name: Dispatch tracker bridge
         env:
-          BUILDCORE_TRACKER_PUSH_TOKEN: ${{ secrets.BUILDCORE_TRACKER_PUSH_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          AFTER_SHA: ${{ github.sha }}
-          BEFORE_SHA: ${{ github.event.before }}
-          GITHUB_ACTOR: ${{ github.actor }}
-        run: node scripts/dispatch-daily-tracker-bridge.mjs
+          TRACKER_TOKEN: ${{ secrets.BUILDCORE_TRACKER_PUSH_TOKEN || secrets.BUILDCORE_TRACKER_PAT }}
+          SOURCE_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_ACTION: ${{ github.event.action }}
+          REPO: ${{ github.repository }}
+          SENDER: ${{ github.actor }}
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+          COMMIT: ${{ github.sha }}
+          BEFORE: ${{ github.event.before }}
+          COMPARE_URL: ${{ github.event.compare }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          SERVER_URL: ${{ github.server_url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${TRACKER_TOKEN:-}" ]; then
+            echo "No tracker token configured; skipping tracker dispatch."
+            exit 0
+          fi
+
+          if [ "${EVENT_NAME}" = "pull_request" ]; then
+            GH_TOKEN="${SOURCE_TOKEN}" gh api --paginate "repos/${REPO}/pulls/${PR_NUMBER}/files" --jq '.[].filename' > /tmp/changed-files.txt
+            SUMMARY="pull_request ${EVENT_ACTION}: ${PR_TITLE}"
+            COMMIT_URL=""
+            DISPATCH_COMPARE_URL="${PR_URL}"
+            PRIORITY="question"
+            ACTION_REQUIRED="true"
+          else
+            if [ -n "${BEFORE:-}" ] && [ "${BEFORE}" != "0000000000000000000000000000000000000000" ]; then
+              git diff --name-only "${BEFORE}" "${COMMIT}" > /tmp/changed-files.txt || git show --name-only --format="" "${COMMIT}" > /tmp/changed-files.txt
+            else
+              git show --name-only --format="" "${COMMIT}" > /tmp/changed-files.txt
+            fi
+            SUMMARY="$(git log -1 --pretty=%s "${COMMIT}" 2>/dev/null || echo "push to ${BRANCH}")"
+            COMMIT_URL="${SERVER_URL}/${REPO}/commit/${COMMIT}"
+            DISPATCH_COMPARE_URL="${COMPARE_URL:-${COMMIT_URL}}"
+            PRIORITY="fyi"
+            ACTION_REQUIRED="false"
+          fi
+
+          python3 - <<'PY' > /tmp/tracker-dispatch.json
+          import json, os
+          from pathlib import Path
+
+          files = [line.strip() for line in Path('/tmp/changed-files.txt').read_text().splitlines() if line.strip()]
+          important_prefixes = ('handoffs/', 'prototypes/', 'prototype', 'training-guides/', 'templates/')
+          action_required = os.environ.get('ACTION_REQUIRED') == 'true' or any(name.startswith(important_prefixes) for name in files)
+          priority = 'question' if action_required else os.environ.get('PRIORITY', 'fyi')
+          payload = {
+              'event_type': 'tyler-repo-bridge',
+              'client_payload': {
+                  'repo': os.environ['REPO'],
+                  'sender': os.environ['SENDER'],
+                  'branch': os.environ['BRANCH'],
+                  'commit': os.environ['COMMIT'],
+                  'commit_url': os.environ.get('COMMIT_URL', ''),
+                  'compare_url': os.environ.get('DISPATCH_COMPARE_URL', ''),
+                  'message': os.environ.get('SUMMARY', ''),
+                  'priority': priority,
+                  'action_required': action_required,
+                  'files': files[:20],
+              },
+          }
+          print(json.dumps(payload))
+          PY
+
+          GH_TOKEN="${TRACKER_TOKEN}" gh api repos/BunkWorx/buildcore-daily-tracker/dispatches             --method POST             --input /tmp/tracker-dispatch.json

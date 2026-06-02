@@ -7,7 +7,7 @@
  * Schema reference: supabase/migrations/0001_initial_schema.sql
  */
 
-import { supabaseServer } from "./supabase/server";
+import { createClient } from "./supabase/server";
 import { getFeatureById as getFeatureByIdLocal } from "./mock"; // used while we still resolve feature names locally
 import type {
   ActivityEvent,
@@ -30,7 +30,7 @@ import type {
 // Projects
 // ---------------------------------------------------------------------------
 export async function getAllProjects(): Promise<Project[]> {
-  const sb = supabaseServer();
+  const sb = await createClient();
   const { data, error } = await sb
     .from("projects")
     .select(
@@ -42,7 +42,7 @@ export async function getAllProjects(): Promise<Project[]> {
 }
 
 export async function getProject(id: string): Promise<ProjectDetail | null> {
-  const sb = supabaseServer();
+  const sb = await createClient();
   const { data: projectRow, error: projectErr } = await sb
     .from("projects")
     .select("*")
@@ -84,7 +84,7 @@ export async function getProject(id: string): Promise<ProjectDetail | null> {
 }
 
 export async function getProjectCounts(id: string): Promise<ProjectCounts> {
-  const sb = supabaseServer();
+  const sb = await createClient();
   const [tickets, feedback, testing, pending, ideas] = await Promise.all([
     sb.from("tickets").select("id", { count: "exact", head: true }).eq("project_id", id),
     sb.from("feedback_items").select("id", { count: "exact", head: true }).eq("project_id", id),
@@ -105,7 +105,7 @@ export async function getProjectCounts(id: string): Promise<ProjectCounts> {
 // Lifecycle phases
 // ---------------------------------------------------------------------------
 export async function getProjectPhases(id: string): Promise<Phase[]> {
-  const sb = supabaseServer();
+  const sb = await createClient();
   const { data: phaseRows, error: phaseErr } = await sb
     .from("lifecycle_phases")
     .select("id, type, name, color, sort_order, start_month, end_month")
@@ -147,7 +147,7 @@ export async function getProjectPhases(id: string): Promise<Phase[]> {
 // Tickets
 // ---------------------------------------------------------------------------
 export async function getProjectTickets(projectId: string): Promise<Ticket[]> {
-  const sb = supabaseServer();
+  const sb = await createClient();
   const { data, error } = await sb
     .from("tickets")
     .select("id, ref, title, stage, priority, summary, project_id")
@@ -170,7 +170,7 @@ export async function getProjectTicketsFiltered(
 ): Promise<Ticket[]> {
   const tickets = await getProjectTickets(projectId);
   if (!featureId) return tickets;
-  const sb = supabaseServer();
+  const sb = await createClient();
   const { data, error } = await sb
     .from("feature_tickets")
     .select("ticket:tickets(ref)")
@@ -189,7 +189,7 @@ export async function getFeatureForProject(
   projectId: string,
   featureId: string,
 ): Promise<Feature | null> {
-  const sb = supabaseServer();
+  const sb = await createClient();
   const { data, error } = await sb
     .from("features")
     .select(
@@ -218,7 +218,7 @@ export async function getFeatureForProject(
 }
 
 export async function getTicketDetail(ref: string): Promise<TicketDetail | null> {
-  const sb = supabaseServer();
+  const sb = await createClient();
   const { data: tRow, error: tErr } = await sb
     .from("tickets")
     .select("*")
@@ -282,7 +282,7 @@ export async function getTicketDetail(ref: string): Promise<TicketDetail | null>
 // Feedback + tests + pending
 // ---------------------------------------------------------------------------
 export async function getProjectFeedback(projectId: string): Promise<FeedbackItem[]> {
-  const sb = supabaseServer();
+  const sb = await createClient();
   const { data, error } = await sb
     .from("feedback_items")
     .select("*")
@@ -303,7 +303,7 @@ export async function getProjectFeedback(projectId: string): Promise<FeedbackIte
 }
 
 export async function getProjectTestCases(projectId: string): Promise<TestCase[]> {
-  const sb = supabaseServer();
+  const sb = await createClient();
   const { data, error } = await sb
     .from("test_cases")
     .select("id, project_id, feature_id, name, steps, expected, status, owner, last_run_at, failure_note, sort_order, feature:features(name)")
@@ -376,7 +376,7 @@ export async function groupPendingByArea(projectId: string): Promise<PendingArea
 // Activity
 // ---------------------------------------------------------------------------
 export async function getActivity(limit = 24): Promise<ActivityEvent[]> {
-  const sb = supabaseServer();
+  const sb = await createClient();
   const { data, error } = await sb
     .from("activity_events")
     .select("id, who, what, target, meta, source, occurred_at, project:projects(name)")
@@ -404,7 +404,7 @@ export async function getProjectActivity(projectName: string): Promise<ActivityE
 // Ideas
 // ---------------------------------------------------------------------------
 export async function getAllIdeas(): Promise<Idea[]> {
-  const sb = supabaseServer();
+  const sb = await createClient();
   const { data, error } = await sb
     .from("ideas")
     .select(
@@ -440,7 +440,7 @@ export async function getIdeasForFeature(featureId: string): Promise<Idea[]> {
 // Tasks (read for SSR; mutations come later)
 // ---------------------------------------------------------------------------
 export async function getTasksFor(owner: string) {
-  const sb = supabaseServer();
+  const sb = await createClient();
   const { data, error } = await sb
     .from("tasks")
     .select("*")

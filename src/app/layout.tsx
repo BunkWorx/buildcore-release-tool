@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { Roboto, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { AppShell } from "@/components/layout/AppShell";
-
 const roboto = Roboto({
   variable: "--font-roboto",
   subsets: ["latin"],
@@ -30,9 +28,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${roboto.variable} ${jetbrainsMono.variable}`}>
-      <body>
-        <AppShell>{children}</AppShell>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

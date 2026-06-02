@@ -12,7 +12,7 @@ import {
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { releaseToolDisplayUser } from "@/lib/release-tool-user";
+import type { ReleaseToolUser } from "@/lib/auth/session";
 
 type NavItem = {
   label: string;
@@ -27,10 +27,8 @@ const NAV: NavItem[] = [
   { label: "Ideas", href: "/ideas", icon: Lightbulb },
 ];
 
-export function Sidebar() {
+export function Sidebar({ user }: { user: ReleaseToolUser }) {
   const pathname = usePathname();
-  const { name, role, initials } = releaseToolDisplayUser();
-  const profileName = name || "BuildCore team";
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
 
@@ -98,15 +96,21 @@ export function Sidebar() {
           className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-white"
           style={{ background: "var(--bc-brand-600)" }}
         >
-          {initials}
+          {user.initials}
         </div>
-        <div className="flex-1">
-          <div className="text-[13px] font-semibold">{profileName}</div>
-          <div className="text-[11px] text-slate-400">{role}</div>
+        <div className="flex-1 min-w-0">
+          <div className="truncate text-[13px] font-semibold">{user.displayName}</div>
+          <div className="truncate text-[11px] text-slate-400">{user.roleLabel}</div>
         </div>
-        <button className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
-          <Settings size={14} />
-        </button>
+        <form action="/auth/signout" method="POST">
+          <button
+            type="submit"
+            className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+            title="Sign out"
+          >
+            <Settings size={14} />
+          </button>
+        </form>
       </div>
     </aside>
   );

@@ -1,34 +1,57 @@
-import { createClient } from "@supabase/supabase-js";
+import { createServerClient } from "@supabase/ssr";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
 
-/** Server-side Supabase client.
- *
- * Uses the anon key. Reads are gated by RLS (anon has SELECT on every table
- * in this app's schema). Writes go through API routes that construct a
- * service-role client instead — never from here. */
-export function supabaseServer() {
+/** Cookie-backed client for Server Components (authenticated reads via RLS). */
+export async function createClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !anonKey) {
     throw new Error(
-      "Supabase env vars not set. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local.",
+      "Supabase env vars not set. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.",
     );
   }
-  return createClient(url, anonKey, {
+
+  const cookieStore = await cookies();
+
+  return createServerClient(url, anonKey, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
+      },
+      setAll(cookiesToSet) {
+        try {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            cookieStore.set(name, value, options);
+          });
+        } catch {
+          // Called from Server Component; middleware refreshes sessions.
+        }
+      },
+    },
+  });
+}
+
+/** @deprecated Use createClient() — kept for webhook/service paths only. */
+export function supabaseServer() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !anonKey) {
+    throw new Error("Supabase env vars not set.");
+  }
+  return createSupabaseClient(url, anonKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }
 
-/** Service-role Supabase client. SERVER-ONLY. Bypasses RLS. Use in API
- *  routes / server actions for writes. */
+/** Service-role client. SERVER-ONLY. Bypasses RLS — webhooks and admin scripts. */
 export function supabaseService() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !serviceKey) {
-    throw new Error(
-      "Service-role env vars missing. Add SUPABASE_SERVICE_ROLE_KEY to .env.local.",
-    );
+    throw new Error("SUPABASE_SERVICE_ROLE_KEY missing.");
   }
-  return createClient(url, serviceKey, {
+  return createSupabaseClient(url, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }

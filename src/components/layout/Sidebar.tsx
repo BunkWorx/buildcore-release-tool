@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Map,
   Folder,
+  Users,
   Lightbulb,
   GitBranch,
   Link2,
@@ -24,6 +25,7 @@ const NAV: NavItem[] = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
   { label: "Roadmap", href: "/roadmap", icon: Map },
   { label: "Projects", href: "/projects", icon: Folder },
+  { label: "Team", href: "/team", icon: Users },
   { label: "Ideas", href: "/ideas", icon: Lightbulb },
 ];
 

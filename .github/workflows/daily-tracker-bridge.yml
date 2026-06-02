@@ -69,6 +69,7 @@ jobs:
             PRIORITY="fyi"
             ACTION_REQUIRED="false"
           fi
+          export SUMMARY COMMIT_URL DISPATCH_COMPARE_URL PRIORITY ACTION_REQUIRED
 
           python3 - <<'PY' > /tmp/tracker-dispatch.json
           import json, os

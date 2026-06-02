@@ -179,6 +179,7 @@ Postgres in `duullaauybtjnsotebvc`:
 - `projects`, `features`, `tickets` (unique `ref`, column **`stage`** not `status`)
 - `feature_tickets`, `ticket_activity`, `activity_events`, etc.
 - `release_tool_profiles` linked to `auth.users`
+- **Assignment (BC-271):** `tickets.assigned_to` + `projects.owner_id` (FK to `release_tool_profiles`) power the `/team` view (who is working on what + per-person priorities); migration `0004_assignment_and_team_view.sql`. Public `/api/version` returns the build commit SHA for the deploy-freshness smoke check.
 
 Ticket stage for BC-PORTAL-8538–8547: all **`on_stage`** as of session closeout.
 

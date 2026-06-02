@@ -12,6 +12,7 @@ import {
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { releaseToolDisplayUser } from "@/lib/release-tool-user";
 
 type NavItem = {
   label: string;
@@ -28,6 +29,8 @@ const NAV: NavItem[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { name, role, initials } = releaseToolDisplayUser();
+  const profileName = name || "BuildCore team";
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
 
@@ -95,11 +98,11 @@ export function Sidebar() {
           className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-white"
           style={{ background: "var(--bc-brand-600)" }}
         >
-          TW
+          {initials}
         </div>
         <div className="flex-1">
-          <div className="text-[13px] font-semibold">Tyler Woodworth</div>
-          <div className="text-[11px] text-slate-400">Product owner</div>
+          <div className="text-[13px] font-semibold">{profileName}</div>
+          <div className="text-[11px] text-slate-400">{role}</div>
         </div>
         <button className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
           <Settings size={14} />

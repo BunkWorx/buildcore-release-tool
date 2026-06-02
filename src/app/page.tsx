@@ -9,15 +9,17 @@ import { ActivityCard } from "@/components/dashboard/ActivityCard";
 import { TicketPipelineCard } from "@/components/dashboard/TicketPipelineCard";
 import { NeedsAttentionCard } from "@/components/dashboard/NeedsAttentionCard";
 import { getActivity, getAllProjects } from "@/lib/db";
+import { releaseToolDisplayUser, welcomeHeading } from "@/lib/release-tool-user";
 
 export default async function DashboardPage() {
   const [projects, activity] = await Promise.all([getAllProjects(), getActivity(8)]);
+  const { name } = releaseToolDisplayUser();
 
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1>Welcome back, Tyler</h1>
+          <h1>{welcomeHeading(name)}</h1>
           <p className="mt-1.5 text-sm text-slate-600">
             Snapshot across all BuildCore release projects
           </p>

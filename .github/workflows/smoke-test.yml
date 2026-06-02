@@ -1,0 +1,61 @@
+name: Production smoke test
+
+# Pings the live release tool so an outage, a broken deploy, or a drifted
+# webhook secret surfaces in GitHub Actions instead of from Tyler.
+#
+# No data is written: the authenticated check sends an empty body, which the
+# webhook rejects with 400 (missing ref/stage) AFTER it accepts the bearer
+# token, so it proves the secret matches without upserting any ticket.
+
+on:
+  schedule:
+    - cron: "0 */6 * * *" # every 6 hours
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: smoke-test
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    env:
+      BASE_URL: https://buildcore-release-tool-six.vercel.app
+      TICKETS_WEBHOOK_SECRET: ${{ secrets.TICKETS_WEBHOOK_SECRET }}
+    steps:
+      - name: Login page returns 200
+        run: |
+          code=$(curl -sS -o /dev/null -w '%{http_code}' "$BASE_URL/login")
+          echo "GET /login -> $code"
+          test "$code" = "200" || { echo "::error::Expected 200 from /login, got $code (app may be down or misdeployed)"; exit 1; }
+
+      - name: Ticket webhook rejects unauthenticated POST (401)
+        run: |
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST "$BASE_URL/api/webhooks/tickets" \
+            -H 'Content-Type: application/json' -d '{}')
+          echo "POST /api/webhooks/tickets (no auth) -> $code"
+          test "$code" = "401" || { echo "::error::Expected 401 from unauthenticated webhook, got $code (route missing or auth not enforced)"; exit 1; }
+
+      - name: Ticket webhook accepts the configured secret (400 on empty body, not 401)
+        run: |
+          if [ -z "$TICKETS_WEBHOOK_SECRET" ]; then
+            echo "::error::TICKETS_WEBHOOK_SECRET repo secret is empty — cannot verify webhook auth. Set it in repo Settings → Secrets and mirror it to Vercel + buildcore-daily-tracker."
+            exit 1
+          fi
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST "$BASE_URL/api/webhooks/tickets" \
+            -H "Authorization: Bearer $TICKETS_WEBHOOK_SECRET" \
+            -H 'Content-Type: application/json' -d '{}')
+          echo "POST /api/webhooks/tickets (valid bearer, empty body) -> $code"
+          if [ "$code" = "401" ]; then
+            echo "::error::Webhook returned 401 with the repo secret — TICKETS_WEBHOOK_SECRET no longer matches production. Re-sync the secret across Vercel (TICKETS_WEBHOOK_SECRET) and buildcore-daily-tracker (RELEASE_TOOL_TICKETS_WEBHOOK_SECRET), then redeploy."
+            exit 1
+          fi
+          test "$code" = "400" || { echo "::error::Expected 400 (auth accepted, empty body rejected), got $code"; exit 1; }
+
+      - name: Result
+        run: echo "Smoke test passed — login 200, webhook 401 unauthenticated, webhook 400 with valid secret."

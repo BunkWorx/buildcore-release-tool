@@ -55,8 +55,6 @@ jobs:
             SUMMARY="pull_request ${EVENT_ACTION}: ${PR_TITLE}"
             COMMIT_URL=""
             DISPATCH_COMPARE_URL="${PR_URL}"
-            PRIORITY="question"
-            ACTION_REQUIRED="true"
           else
             if [ -n "${BEFORE:-}" ] && [ "${BEFORE}" != "0000000000000000000000000000000000000000" ]; then
               git diff --name-only "${BEFORE}" "${COMMIT}" > /tmp/changed-files.txt || git show --name-only --format="" "${COMMIT}" > /tmp/changed-files.txt
@@ -66,19 +64,19 @@ jobs:
             SUMMARY="$(git log -1 --pretty=%s "${COMMIT}" 2>/dev/null || echo "push to ${BRANCH}")"
             COMMIT_URL="${SERVER_URL}/${REPO}/commit/${COMMIT}"
             DISPATCH_COMPARE_URL="${COMPARE_URL:-${COMMIT_URL}}"
-            PRIORITY="fyi"
-            ACTION_REQUIRED="false"
           fi
-          export SUMMARY COMMIT_URL DISPATCH_COMPARE_URL PRIORITY ACTION_REQUIRED
+          export SUMMARY COMMIT_URL DISPATCH_COMPARE_URL
+
+          # Priority is intentionally NOT computed here. The tracker
+          # (notify-tyler-repo-bridge.py) re-derives priority from the changed-file
+          # content and ignores any priority the source sends (BC-682). This
+          # workflow dispatches event facts only; the tracker owns classification.
 
           python3 - <<'PY' > /tmp/tracker-dispatch.json
           import json, os
           from pathlib import Path
 
           files = [line.strip() for line in Path('/tmp/changed-files.txt').read_text().splitlines() if line.strip()]
-          important_prefixes = ('handoffs/', 'prototypes/', 'prototype', 'training-guides/', 'templates/')
-          action_required = os.environ.get('ACTION_REQUIRED') == 'true' or any(name.startswith(important_prefixes) for name in files)
-          priority = 'question' if action_required else os.environ.get('PRIORITY', 'fyi')
           payload = {
               'event_type': 'tyler-repo-bridge',
               'client_payload': {
@@ -89,8 +87,6 @@ jobs:
                   'commit_url': os.environ.get('COMMIT_URL', ''),
                   'compare_url': os.environ.get('DISPATCH_COMPARE_URL', ''),
                   'message': os.environ.get('SUMMARY', ''),
-                  'priority': priority,
-                  'action_required': action_required,
                   'files': files[:20],
               },
           }
